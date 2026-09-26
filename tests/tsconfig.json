@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig",
+  "compilerOptions": {
+    "paths": {
+      "nuxt-vitest-shared-app": ["../src/index.ts"],
+      "nuxt-vitest-shared-app/config": ["../src/config.ts"],
+      "nuxt-vitest-shared-app/dom": ["../src/dom.ts"]
+    }
+  },
+  "include": ["*.ts", "helpers/**/*.ts", "types/**/*.ts", "../vitest.config.ts"],
+  "exclude": ["types/route-unregistered.type-test.ts"]
+}

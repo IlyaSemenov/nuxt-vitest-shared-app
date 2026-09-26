@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["route-unregistered.type-test.ts"],
+  "exclude": []
+}
