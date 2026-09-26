@@ -1,0 +1,74 @@
+{
+  "name": "nuxt-vitest-shared-app",
+  "version": "0.0.0",
+  "description": "Run Nuxt component tests in Vitest on one Nuxt app per worker, with deterministic per-test cleanup and typed auto-import overrides.",
+  "keywords": [
+    "nuxt",
+    "nuxt-test-utils",
+    "testing",
+    "vitest",
+    "vue"
+  ],
+  "homepage": "https://github.com/IlyaSemenov/nuxt-vitest-shared-app#readme",
+  "bugs": "https://github.com/IlyaSemenov/nuxt-vitest-shared-app/issues",
+  "license": "MIT",
+  "author": "Ilya Semenov",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IlyaSemenov/nuxt-vitest-shared-app.git"
+  },
+  "files": [
+    "README.md",
+    "dist"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "imports": {
+    "#src/*": "./src/*.ts"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./config": "./dist/config.mjs",
+    "./dom": "./dist/dom.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "lint": "oxlint --fix && oxfmt",
+    "lint:check": "oxlint && oxfmt --check",
+    "prepare": "lefthook install",
+    "prepublishOnly": "bun run build",
+    "test": "vitest run",
+    "test:consumer": "bun run build && bun tests/consumer/run.ts",
+    "types": "tsc && tsc -p tests/tsconfig.json && tsc -p tests/types/tsconfig.route-unregistered.json"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "^0.18.5",
+    "@changesets/cli": "^2.31.1",
+    "@nuxt/test-utils": "4.3.2",
+    "@types/node": "^24.0.0",
+    "@vue/test-utils": "^2.4.8",
+    "@vueuse/core": "^15.0.0",
+    "happy-dom": "^20.14.5",
+    "nuxt": "~4.5.2",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
+    "publint": "^0.3.22",
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2",
+    "vue": "^3.5.43"
+  },
+  "peerDependencies": {
+    "@nuxt/test-utils": "~4.3.0",
+    "@vue/test-utils": "^2.4.2",
+    "nuxt": "^4.4.2",
+    "vitest": "^4.1.0 || ^5.0.0",
+    "vue": "^3.5.30"
+  },
+  "packageManager": "bun@1.4.2"
+}
