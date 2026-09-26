@@ -15,7 +15,7 @@ Tests that need plugins re-initialized or a different startup config belong in a
 - [The problem](#the-problem)
 - [Install](#install)
 - [Quick start](#quick-start)
-- [Migrating an existing suite](#migrating-an-existing-suite)
+- [Switching from per-file startup](#switching-from-per-file-startup)
 - [Per-test overrides](#per-test-overrides)
 - [Project resets](#project-resets)
 - [Worker state](#worker-state)
@@ -64,9 +64,8 @@ import { defineSharedNuxtVitestConfig } from "nuxt-vitest-shared-app/config"
 
 export default defineSharedNuxtVitestConfig({
   test: {
-    include: ["**/*.vitest.ts"],
+    include: ["test/nuxt/**/*.test.ts"],
     environment: "nuxt",
-    pool: "threads",
     isolate: false,
   },
 })
@@ -92,24 +91,23 @@ defineSharedNuxtVitestConfig(config, { silenceSuspenseInfo: true })
 
 With `silenceSuspenseInfo: true`, Vue's `<Suspense> is an experimental feature and its API will likely change.` message, which every `mountSuspended` call prints, is filtered through `test.onConsoleLog`; your own `onConsoleLog` still receives all other messages.
 
-## Migrating an existing suite
+## Switching from per-file startup
 
-Remove what the library now does:
+With plain `@nuxt/test-utils`, every test file starts from fresh modules and globals.
+With a shared app, modules stay cached for the following files of the worker, so objects created at module level live for the whole environment.
+Tests that passed with per-file startup may rely on that implicitly and start to depend on the order of files.
 
-- `enableAutoUnmount` calls in project setup files: the library installs its own, and `@vue/test-utils` rejects a second call;
-- hooks that clean up what the library [cleans up](#cleanup), such as Nuxt state, storage, cookies, timers, and stubbed globals;
-- local patches or workarounds that start Nuxt once per worker.
-
-Keep project-specific cleanup, and move hooks that must run after every test into [project resets](#project-resets).
-
-Because modules stay cached, objects created at module level live for the whole environment, not for one file.
-A global replaced by one test file affects every file that runs after it in the worker, including objects that other modules already created from the previous global.
+A typical case is a global replaced by one test file.
+It affects every file that runs after it in the worker, including objects that other modules already created from the previous global.
 For example, a test file that imports a forced `Intl` polyfill replaces the global constructor, while a formatter created earlier at module level still belongs to the previous implementation.
 
 - Install global polyfills once in a project setup file, before components are imported, and prefer polyfills that keep an existing implementation.
 - Do not replace global constructors with side-effect imports in individual test files.
 - Review module-level objects that depend on such globals, such as formatters, clients, and caches.
-- After the migration, run the suite on one worker with shuffled files, so all files share one environment in a different order, e.g. `vitest run --maxWorkers=1 --sequence.shuffle.files --sequence.seed=1`.
+- Run the suite on one worker with shuffled files, so all files share one environment in a different order, e.g. `vitest run --maxWorkers=1 --sequence.shuffle.files --sequence.seed=1`.
+
+Remove `enableAutoUnmount` calls from project setup files: the library installs its own, and `@vue/test-utils` throws on a second call.
+Hooks that clean up what the library [cleans up](#cleanup) keep working, and you can remove them.
 
 ## Per-test overrides
 
@@ -123,13 +121,13 @@ Register overridable imports in a project setup file:
 export default defineSharedNuxtVitestConfig({
   test: {
     // ...
-    setupFiles: ["./testing/nuxt/setup.ts"],
+    setupFiles: ["./test/nuxt/setup.ts"],
   },
 })
 ```
 
 ```ts
-// testing/nuxt/setup.ts
+// test/nuxt/setup.ts
 import { mockNuxtImport } from "@nuxt/test-utils/runtime"
 import { overridableNuxtImport } from "nuxt-vitest-shared-app"
 
@@ -174,7 +172,7 @@ Use a fallback for behavior that the app needs while it starts.
 First add `useUser` and its type to `TestNuxtImports`, as in the setup file above, then:
 
 ```ts
-// testing/nuxt/setup.ts
+// test/nuxt/setup.ts
 mockNuxtImport(
   "useUser",
   overridableNuxtImport("useUser", () => ref(null)),
@@ -222,7 +220,7 @@ Registers a reset that runs after each test, see step 6 of the [cleanup](#cleanu
 Use it for application resources that the library does not know about, such as test API clients, subscriptions, and caches:
 
 ```ts
-// testing/nuxt/setup.ts
+// test/nuxt/setup.ts
 import { registerNuxtTestReset } from "nuxt-vitest-shared-app"
 
 import { testApiClient } from "./api-client"
@@ -355,7 +353,7 @@ import { defineVitestConfig } from "@nuxt/test-utils/config"
 
 export default defineVitestConfig({
   test: {
-    include: ["**/*.isolated.vitest.ts"],
+    include: ["test/nuxt-isolated/**/*.test.ts"],
     environment: "nuxt",
   },
 })
@@ -366,7 +364,7 @@ vitest run
 vitest run --config vitest.isolated.config.ts
 ```
 
-Exclude the isolated files from the shared-app config.
+Keep the `include` patterns of the two configs from overlapping, so each file runs in one of them.
 
 ## Compatibility and upstream
 
