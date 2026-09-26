@@ -27,13 +27,14 @@ function installLifecycle() {
     const store = getEnvironmentStore()
     // Before any project `beforeAll` of the file runs against a contaminated environment.
     assertNotContaminated(store)
-    const { tryUseNuxtApp } = await import("nuxt/app")
-    const nuxtApp = assertAppRunning(tryUseNuxtApp(), document)
+    // Before the readiness check, which would hide the cause behind a generic error.
     if (store.startupFailure) {
       throw new Error("nuxt-vitest-shared-app: Nuxt startup failed earlier in this environment.", {
         cause: store.startupFailure,
       })
     }
+    const { tryUseNuxtApp } = await import("nuxt/app")
+    const nuxtApp = assertAppRunning(tryUseNuxtApp(), document)
     if (!store.baseline) {
       // The adapter already retries such failures; this catches them from an upstream entry.
       const startupError = getStartupError(nuxtApp)
