@@ -1,6 +1,6 @@
 {
   "name": "nuxt-vitest-shared-app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Run Nuxt component tests in Vitest on one shared app per worker, with per-test cleanup.",
   "keywords": [
     "nuxt",

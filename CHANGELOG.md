@@ -1,5 +1,11 @@
 # nuxt-vitest-shared-app
 
+## 0.1.1
+
+### Patch Changes
+
+- c42b0c2: Restore real timers at the start of the cleanup, so a test that leaves fake timers on no longer hangs the cleanup, e.g. while navigating back to the route baseline.
+
 ## 0.1.0
 
 ### Minor Changes
