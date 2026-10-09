@@ -6,6 +6,13 @@ it("isolates tests with every cleanup step", async () => {
   expectPassed(await runFixture("cleanup"))
 })
 
+it("runs project resets under real timers and drops pending fake timers", async () => {
+  const run = await runFixture("fake-timers")
+  expectPassed(run)
+  expect(run.reports("fake-timers-reset")).toEqual([{ fakeTimers: false }])
+  expect(run.reports("fake-timers")).toEqual([{ fakeTimers: false, fired: false }])
+})
+
 it("cleans up after a failing project afterEach hook", async () => {
   const run = await runFixture("failing-hook")
   const failed = run.test("dirties the environment, then its afterEach fails")

@@ -48,6 +48,8 @@ export async function cleanupAfterTest(
     }
   }
 
+  // The following steps run app code that may wait for timers, e.g. a navigation, and would hang under fake timers.
+  for (const [name, run] of TIMER_STEPS) await step(name, run)
   await step("unmount wrappers", () => unmountWrappers?.())
   // Settles handlers of already-resolved promises only; background work needs a project reset.
   await step("flush promises", async () => {
@@ -85,7 +87,7 @@ export async function cleanupAfterTest(
   await step("clear localStorage", () => localStorage.clear())
   await step("clear sessionStorage", () => sessionStorage.clear())
   await step("expire cookies", expireCookies)
-  for (const [name, run] of RUNNER_STEPS) await step(name, run)
+  for (const [name, run] of STUB_STEPS) await step(name, run)
   await step("remove body children", () => {
     // A copy, because the live collection shrinks while children are removed.
     for (const child of Array.from(document.body.children)) {
@@ -101,13 +103,19 @@ function importNuxt() {
   return import("nuxt/app")
 }
 
-// Test runner facilities that project hooks rely on, restored even after a cleanup timed out.
-const RUNNER_STEPS: ReadonlyArray<[string, () => unknown]> = [
+const TIMER_STEPS: ReadonlyArray<[string, () => unknown]> = [
   ["clear timers", () => vi.clearAllTimers()],
   ["use real timers", () => vi.useRealTimers()],
+]
+
+// Unstubbed late, because unmounting and project resets may rely on stubbed globals.
+const STUB_STEPS: ReadonlyArray<[string, () => unknown]> = [
   ["unstub envs", () => vi.unstubAllEnvs()],
   ["unstub globals", () => vi.unstubAllGlobals()],
 ]
+
+// Test runner facilities that project hooks rely on, restored even after a cleanup timed out.
+const RUNNER_STEPS = [...TIMER_STEPS, ...STUB_STEPS]
 
 /** Restores timers, envs and globals as far as possible, ignoring failures, for an environment that is already contaminated. */
 export function restoreTestRunner() {

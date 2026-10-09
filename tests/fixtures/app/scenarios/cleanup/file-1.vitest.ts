@@ -79,6 +79,16 @@ describe("timers", () => {
   })
 })
 
+describe("route under fake timers", () => {
+  it("dirties", async () => {
+    await useRouter().push("/items/7")
+    vi.useFakeTimers()
+  })
+  it("is clean", () => {
+    expect(useRouter().currentRoute.value.fullPath).toBe("/")
+  })
+})
+
 describe("envs and globals", () => {
   it("dirties", () => {
     vi.stubEnv("PROBE_ENV", "dirty")

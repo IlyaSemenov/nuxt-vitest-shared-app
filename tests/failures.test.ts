@@ -138,12 +138,4 @@ describe("cleanup failure", () => {
     )
     expect(run.reports("failed-handler-timeout")).toEqual([])
   })
-
-  it("restores real timers when a reset fails under fake timers", async () => {
-    const run = await runFixture("fake-timers")
-    expect(run.test("leaves fake timers and a pending timer on")?.errors).toContain(
-      "probe: reset failed under fake timers",
-    )
-    expect(run.reports("fake-timers")).toEqual([{ fakeTimers: false, fired: false }])
-  })
 })
