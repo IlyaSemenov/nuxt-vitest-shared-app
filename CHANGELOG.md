@@ -1,5 +1,11 @@
 # nuxt-vitest-shared-app
 
+## 0.2.0
+
+### Minor Changes
+
+- a1fc102: Add `onNuxtTestCleanup()` for per-test cleanup callbacks.
+
 ## 0.1.1
 
 ### Patch Changes
