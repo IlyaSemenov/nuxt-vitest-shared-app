@@ -5,7 +5,7 @@ Run Nuxt component tests in Vitest on one Nuxt app per Vitest worker, shared by 
 The library provides:
 
 - the shared-app lifecycle on top of `@nuxt/test-utils` (`environment: "nuxt"`, `mountSuspended`, `mockNuxtImport`);
-- deterministic cleanup of documented Nuxt and test-owned state after each test, with explicit project resets for application-specific resources;
+- deterministic cleanup of documented Nuxt and test-owned state after each test, with explicit project resets and per-test cleanups for application-specific resources;
 - typed per-test overrides of Nuxt auto-imports.
 
 It does not reset the whole app state.
@@ -17,6 +17,7 @@ Tests that need plugins re-initialized or a different startup config belong in a
 - [Quick start](#quick-start)
 - [Switching from per-file startup](#switching-from-per-file-startup)
 - [Per-test overrides](#per-test-overrides)
+- [Test cleanups](#test-cleanups)
 - [Project resets](#project-resets)
 - [Worker state](#worker-state)
 - [DOM helpers](#dom-helpers)
@@ -210,13 +211,45 @@ It requires `useRoute` in `TestNuxtImports` and an overridable `useRoute` mock.
 - It does not merge `route` with the real route: missing fields are not filled in, and the object does not satisfy the full `useRoute` contract.
 - Mounted components do not react to it; set it before mounting.
 
+## Test cleanups
+
+```ts
+onNuxtTestCleanup(cleanup: () => unknown): void
+```
+
+Registers a cleanup callback for the current test.
+Use it in project test helpers that change app state the library does not restore:
+
+```ts
+// test/nuxt/feature-flags.ts
+import { onNuxtTestCleanup } from "nuxt-vitest-shared-app"
+
+import { featureFlags } from "~/services/feature-flags"
+
+export function enableTestFeature(name: string) {
+  featureFlags.enable(name)
+  onNuxtTestCleanup(() => featureFlags.disable(name))
+}
+```
+
+Call it in the test, in `beforeEach` or `afterEach`, or in a helper called there; the callback belongs to that test.
+Callbacks run in the cleanup after the test, see step 4 of the [cleanup](#cleanup):
+
+- newest first, each awaited;
+- after mounted wrappers are unmounted;
+- before the router navigates back to the route baseline;
+- while the import overrides of the test still apply.
+
+It throws outside a running test, e.g. at the top level of a file or in `beforeAll`.
+Use [project resets](#project-resets) for resets that every test needs, whether or not it changed anything.
+
 ## Project resets
 
 ```ts
 registerNuxtTestReset(key: string, reset: () => unknown): () => void
 ```
 
-Registers a reset that runs after each test, see step 7 of the [cleanup](#cleanup).
+Registers a reset that runs after each test, see step 8 of the [cleanup](#cleanup).
 Use it for application resources that the library does not know about, such as test API clients, subscriptions, and caches:
 
 ```ts
@@ -263,7 +296,7 @@ The stub is installed with `vi.stubGlobal`, so the cleanup removes it after the 
 | ------------------------------------------------------------------------------ | ------------------------------------------------- |
 | Started app, route baseline, project resets, overridable imports, worker state | The Nuxt environment (its `window`) of the worker |
 | Library `beforeAll` / `beforeEach` hooks                                       | One test file                                     |
-| Import overrides and per-test resources                                        | One test                                          |
+| Import overrides, test cleanups and per-test resources                         | One test                                          |
 
 For each test file of a worker, the library:
 
@@ -294,7 +327,7 @@ Only the first file of an environment, or the next file after a failed startup, 
 
 Test files with another environment, such as `// @vitest-environment node`, run without the library lifecycle.
 In such files, `overridableNuxtImport` factories return the fallback or the original import, and `registerNuxtTestReset` registers nothing, so the same project setup file works for them.
-`overrideNuxtImport`, `overrideNuxtRoute` and `getOrCreateWorkerState` throw outside the `nuxt` environment.
+`overrideNuxtImport`, `overrideNuxtRoute`, `onNuxtTestCleanup` and `getOrCreateWorkerState` throw outside the `nuxt` environment.
 
 ## Cleanup
 
@@ -304,18 +337,19 @@ They run after all `afterEach` hooks of the project, also when one of these hook
 1. `vi.clearAllTimers()` and `vi.useRealTimers()`, so the following steps and project resets run under real timers and the test does not need to restore them;
 2. unmounts wrappers mounted in the test through `@vue/test-utils` (including `mountSuspended`), using `enableAutoUnmount`;
 3. `await nextTick()` and `await flushPromises()`;
-4. navigates the app's own router back to the route baseline with `router.replace` if the route differs, and verifies the resulting route;
-5. clears import overrides;
-6. `await clearError()`, `clearNuxtData()`, `clearNuxtState(undefined, { reset: false })`;
-7. runs project resets registered with `registerNuxtTestReset`, in registration order, awaiting each;
-8. `localStorage.clear()`, `sessionStorage.clear()`, and expires every cookie visible in `document.cookie` for path `/` of the current origin;
-9. `vi.unstubAllEnvs()` and `vi.unstubAllGlobals()`;
-10. removes direct children of `document.body` that were not present at startup.
+4. runs test cleanups registered with `onNuxtTestCleanup` during the test, newest first, awaiting each;
+5. navigates the app's own router back to the route baseline with `router.replace` if the route differs, and verifies the resulting route;
+6. clears import overrides;
+7. `await clearError()`, `clearNuxtData()`, `clearNuxtState(undefined, { reset: false })`;
+8. runs project resets registered with `registerNuxtTestReset`, in registration order, awaiting each;
+9. `localStorage.clear()`, `sessionStorage.clear()`, and expires every cookie visible in `document.cookie` for path `/` of the current origin;
+10. `vi.unstubAllEnvs()` and `vi.unstubAllGlobals()`;
+11. removes direct children of `document.body` that were not present at startup.
 
 The exact scope:
 
 - `flushPromises` only settles handlers of promises that are already resolved; subscriptions, requests, and other background work need their own project resets;
-- step 4 uses the router instance of the app, never the overridable `useRoute`/`navigateTo`;
+- step 5 uses the router instance of the app, never the overridable `useRoute`/`navigateTo`;
 - DOM cleanup removes only new direct children of `document.body`; changes to nodes that existed at startup are not reverted;
 - cookies are expired only as listed above; `HttpOnly` cookies and cookies of other paths or domains are not touched;
 - state created by startup plugins is not re-created.

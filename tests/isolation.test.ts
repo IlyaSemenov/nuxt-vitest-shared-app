@@ -21,6 +21,10 @@ it("cleans up after a failing project afterEach hook", async () => {
   expect(run.test("runs on a cleaned up environment")?.status, run.output).toBe("passed")
 })
 
+it("runs test cleanups registered by one test in its cleanup", async () => {
+  expectPassed(await runFixture("test-cleanups"))
+})
+
 it("overrides auto-imports through the mockNuxtImport macro", async () => {
   expectPassed(await runFixture("overrides"))
 })

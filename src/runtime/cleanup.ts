@@ -38,6 +38,7 @@ export async function cleanupAfterTest(
   store: EnvironmentStore,
   baseline: EnvironmentBaseline,
   unmountWrappers: (() => void) | undefined,
+  testCleanups: ReadonlyArray<() => unknown>,
 ) {
   const failures: CleanupFailure[] = []
   async function step(name: string, run: () => unknown) {
@@ -56,6 +57,11 @@ export async function cleanupAfterTest(
     await nextTick()
     await flushPromises()
   })
+  // Newest first, like nested teardowns.
+  // Before the route is restored: a callback may restore what the baseline navigation needs, e.g. the router's routes.
+  for (let index = testCleanups.length - 1; index >= 0; index--) {
+    await step(`test cleanup ${index + 1}`, testCleanups[index]!)
+  }
   await step("restore route", async () => {
     // The real router, not the overridable `useRoute`/`navigateTo`, which may still be overridden at this point.
     const { useNuxtApp } = await importNuxt()

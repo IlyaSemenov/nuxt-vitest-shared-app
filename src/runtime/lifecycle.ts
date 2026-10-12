@@ -72,14 +72,19 @@ function installLifecycle() {
     if (signal.aborted) onAbort()
     else signal.addEventListener("abort", onAbort, { once: true })
 
+    // Project `beforeEach` hooks run after this one, so they can register test cleanups too.
+    store.testCleanups = []
     // Runs after all afterEach hooks, even when one of them fails, which would skip a library afterEach.
     onTestFinished(async () => {
+      const testCleanups = store.testCleanups ?? []
+      // Registering from the cleanup itself would never run, so it throws instead.
+      store.testCleanups = undefined
       // `beforeAll` failed, so there is no app to clean up and the failure is already reported.
       // A contamination recorded during this test does not skip it: the environment was clean when the test started.
       if (!store.baseline) return
       store.cleanupPending = true
       try {
-        await cleanupAfterTest(store, store.baseline, unmountWrappers)
+        await cleanupAfterTest(store, store.baseline, unmountWrappers, testCleanups)
       } catch (error) {
         // A late failure keeps the timeout error, which the following tests already reported.
         store.contamination ??= error as Error

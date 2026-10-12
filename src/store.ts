@@ -36,6 +36,8 @@ export interface EnvironmentStore {
   readonly imports: Map<string, OverridableImport>
   readonly overrides: Map<string, ImportFunction>
   readonly resets: Map<string, ResetRegistration>
+  /** Callbacks registered with `onNuxtTestCleanup` for the running test; unset outside a test. */
+  testCleanups?: Array<() => unknown>
   readonly workerState: Map<string, unknown>
 }
 

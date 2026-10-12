@@ -78,6 +78,20 @@ describe("cleanup failure", () => {
     expect(run.output).toMatch(/contaminated[\s\S]*Caused by: CleanupError/)
   })
 
+  it("runs the remaining cleanup after a failing test cleanup", async () => {
+    const run = await runFixture("failing-test-cleanup")
+    expect(run.test("has a failing test cleanup")?.errors).toContain("probe: test cleanup failed")
+    expect(run.test("runs after the failing test cleanup")?.errors).toContain(
+      "this environment is contaminated",
+    )
+    // The step name is visible in the contamination cause.
+    expect(run.output).toContain(
+      "CleanupError: nuxt-vitest-shared-app: cleanup failed.\n- test cleanup 2: probe: test cleanup failed",
+    )
+    expect(run.reports("test-cleanup")).toEqual(["newest", "older"])
+    expect(run.reports("reset")).toEqual(["ran"])
+  })
+
   it("fails every following test when the cleanup hangs", async () => {
     const run = await runFixture("stuck-cleanup", { HOOK_TIMEOUT: "500" })
     // The hook timeout message differs between Vitest versions.
