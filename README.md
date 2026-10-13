@@ -1,39 +1,21 @@
 # nuxt-vitest-shared-app
 
-Run Nuxt component tests in Vitest on one Nuxt app per Vitest worker, shared by all test files of that worker.
+Run Nuxt component tests in Vitest without starting Nuxt again for every test file.
 
-The library provides:
+With plain `@nuxt/test-utils`, its runtime entry in `test.setupFiles` calls `vi.resetModules()` and starts Nuxt in `beforeAll` for every test file, even with `isolate: false`.
+In a project with many small component test files, most of the run time goes into Nuxt startup.
 
-- the shared-app lifecycle on top of `@nuxt/test-utils` (`environment: "nuxt"`, `mountSuspended`, `mockNuxtImport`);
-- deterministic cleanup of documented Nuxt and test-owned state after each test, with explicit project resets and per-test cleanups for application-specific resources;
+With this library, each Vitest worker starts Nuxt once, and all its test files run on that app.
+As a data point from one application with a local workaround, [nuxt/test-utils#1750](https://github.com/nuxt/test-utils/issues/1750) reports 12 files with 22 tests going from 19.6 s to 6.6 s with one worker; your numbers will differ.
+
+You keep the `@nuxt/test-utils` API you know (`environment: "nuxt"`, `mountSuspended`, `mockNuxtImport`) and get:
+
+- deterministic cleanup of documented Nuxt and test-owned state after each test, with hooks for your own resources;
 - typed per-test overrides of Nuxt auto-imports.
 
 It does not reset the whole app state.
 State created by startup plugins is not re-created between tests or files.
 Tests that need plugins re-initialized or a different startup config belong in a [separate Vitest config](#startup-sensitive-tests).
-
-- [The problem](#the-problem)
-- [Install](#install)
-- [Quick start](#quick-start)
-- [Switching from per-file startup](#switching-from-per-file-startup)
-- [Per-test overrides](#per-test-overrides)
-- [Test cleanups](#test-cleanups)
-- [Project resets](#project-resets)
-- [Worker state](#worker-state)
-- [DOM helpers](#dom-helpers)
-- [Lifecycle](#lifecycle)
-- [Cleanup](#cleanup)
-- [Startup-sensitive tests](#startup-sensitive-tests)
-- [Compatibility and upstream](#compatibility-and-upstream)
-
-## The problem
-
-`@nuxt/test-utils` adds its runtime entry to `test.setupFiles`.
-The entry calls `vi.resetModules()` and starts Nuxt in `beforeAll` for every test file, so Nuxt is initialized again per file even with `isolate: false`.
-In a project with many small component test files, most of the run time goes into Nuxt startup.
-
-With this library, each Vitest worker starts Nuxt once, and all its test files run on that app.
-As a data point from one application with a local workaround, [nuxt/test-utils#1750](https://github.com/nuxt/test-utils/issues/1750) reports 12 files with 22 tests going from 19.6 s to 6.6 s with one worker; your numbers will differ.
 
 ## Install
 
@@ -73,8 +55,14 @@ export default defineSharedNuxtVitestConfig({
 ```
 
 Keep your existing test file patterns and other settings.
-Existing `mountSuspended` tests run on the shared app with the built-in cleanup as they are.
-Add a project setup file only when you need [per-test overrides](#per-test-overrides) or [project resets](#project-resets).
+Existing `mountSuspended` tests run on the shared app as they are.
+
+After each test, the library unmounts wrappers, restores timers, stubbed globals, and envs, clears Nuxt data and state, storage, and cookies, and navigates back to the initial route; see [Cleanup](#cleanup) for the full list.
+
+Add a project setup file only when you need [per-test overrides](#overriding-auto-imports-per-test) or [project resets](#project-resets).
+If some tests start failing or depend on the order of files, see [Switching from per-file startup](#switching-from-per-file-startup).
+
+### Config checks
 
 The wrapper passes the config to `defineVitestConfig` from `@nuxt/test-utils/config`, adds the library lifecycle, and checks the settings a shared app relies on:
 
@@ -83,6 +71,8 @@ The wrapper passes the config to `defineVitestConfig` from `@nuxt/test-utils/con
 - `test.pool` must be `"threads"` or `"forks"`; `isolate` has no effect in the VM pools;
 - `test.sequence.setupFiles` is set to `"list"`, and `"parallel"` is rejected;
 - `test.sequence.hooks: "parallel"` and `test.sequence.concurrent: true` are rejected.
+
+### Options
 
 The second argument takes options:
 
@@ -110,12 +100,33 @@ For example, a test file that imports a forced `Intl` polyfill replaces the glob
 Remove `enableAutoUnmount` calls from project setup files: the library installs its own, and `@vue/test-utils` throws on a second call.
 Hooks that clean up what the library [cleans up](#cleanup) keep working, and you can remove them.
 
-## Per-test overrides
+## Overriding auto-imports per test
 
-A module mock registered again in a later file does not change references that the started app already captured.
-So the project installs a stable wrapper once with `mockNuxtImport`, and tests swap its implementation for one test.
+Swap a Nuxt auto-import for one test with `overrideNuxtImport`, or fake the current route with `overrideNuxtRoute`:
 
-Register overridable imports in a project setup file:
+```ts
+import { mountSuspended } from "@nuxt/test-utils/runtime"
+import { overrideNuxtImport, overrideNuxtRoute } from "nuxt-vitest-shared-app"
+import { expect, it, vi } from "vitest"
+
+import ItemPage from "~/pages/items/[id].vue"
+
+it("opens the edit page", async () => {
+  const navigate = vi.fn()
+  overrideNuxtImport("navigateTo", navigate)
+  overrideNuxtRoute({ params: { id: "1" } })
+
+  const wrapper = await mountSuspended(ItemPage)
+  await wrapper.get("button").trigger("click")
+
+  expect(navigate).toHaveBeenCalledWith("/items/1/edit")
+})
+```
+
+Overrides apply to the current test only; the cleanup clears them.
+Do not set them at the top level of a test file: the file is collected before the app starts, and the override would outlive the test.
+
+Tests can override only imports that the project registered once in a setup file:
 
 ```ts
 // vitest.config.ts
@@ -145,31 +156,12 @@ mockNuxtImport("navigateTo", overridableNuxtImport("navigateTo"))
 mockNuxtImport("useRoute", overridableNuxtImport("useRoute"))
 ```
 
-Override them inside a test or a test hook:
+A module mock registered again in a later file does not change references that the started app already captured.
+So the setup file installs a stable wrapper once with `mockNuxtImport`, and tests swap its implementation.
 
-```ts
-import { mountSuspended } from "@nuxt/test-utils/runtime"
-import { overrideNuxtImport, overrideNuxtRoute } from "nuxt-vitest-shared-app"
-import { expect, it, vi } from "vitest"
+### Fallback for startup code
 
-import ItemPage from "~/pages/items/[id].vue"
-
-it("opens the edit page", async () => {
-  const navigate = vi.fn()
-  overrideNuxtImport("navigateTo", navigate)
-  overrideNuxtRoute({ params: { id: "1" } })
-
-  const wrapper = await mountSuspended(ItemPage)
-  await wrapper.get("button").trigger("click")
-
-  expect(navigate).toHaveBeenCalledWith("/items/1/edit")
-})
-```
-
-Overrides apply to the current test only; the cleanup clears them.
-Do not set them at the top level of a test file: the file is collected before the app starts, and the override would outlive the test.
-
-Use a fallback for behavior that the app needs while it starts.
+Plugins and other startup code call auto-imports before any test hook runs, so only a fallback applies to them.
 First add `useUser` and its type to `TestNuxtImports`, as in the setup file above, then:
 
 ```ts
@@ -179,8 +171,6 @@ mockNuxtImport(
   overridableNuxtImport("useUser", () => ref(null)),
 )
 ```
-
-Plugins and other startup code call auto-imports before any test hook runs, so only a fallback applies to them.
 
 ### `overridableNuxtImport(name, fallback?)`
 
@@ -211,7 +201,16 @@ It requires `useRoute` in `TestNuxtImports` and an overridable `useRoute` mock.
 - It does not merge `route` with the real route: missing fields are not filled in, and the object does not satisfy the full `useRoute` contract.
 - Mounted components do not react to it; set it before mounting.
 
-## Test cleanups
+## Resetting your own state
+
+The built-in [cleanup](#cleanup) covers Nuxt and test-owned state.
+For your application's resources, pick by lifetime:
+
+- [`onNuxtTestCleanup`](#test-cleanups) undoes what one test changed;
+- [`registerNuxtTestReset`](#project-resets) resets a resource after every test, whether or not the test changed it;
+- [`getOrCreateWorkerState`](#worker-state) keeps a helper's state for the whole worker.
+
+### Test cleanups
 
 ```ts
 onNuxtTestCleanup(cleanup: () => unknown): void
@@ -241,9 +240,8 @@ Callbacks run in the cleanup after the test, see step 4 of the [cleanup](#cleanu
 - while the import overrides of the test still apply.
 
 It throws outside a running test, e.g. at the top level of a file or in `beforeAll`.
-Use [project resets](#project-resets) for resets that every test needs, whether or not it changed anything.
 
-## Project resets
+### Project resets
 
 ```ts
 registerNuxtTestReset(key: string, reset: () => unknown): () => void
@@ -264,7 +262,7 @@ registerNuxtTestReset("api-client", () => testApiClient.reset())
 Registering the same key again replaces the callback and keeps its position, so a setup file that runs for every test file does not accumulate registrations.
 The returned function removes the registration, unless it has already been replaced.
 
-## Worker state
+### Worker state
 
 ```ts
 getOrCreateWorkerState<T>(name: string, create: () => T): T
@@ -289,6 +287,30 @@ It accepts elements and the environment's `window` and `document`, which VueUse 
 Any other target throws a `TypeError`.
 Entries include `time`, which vueuse `useElementVisibility` uses to pick the latest entry.
 The stub is installed with `vi.stubGlobal`, so the cleanup removes it after the test; install it in `beforeEach` or in the test itself.
+
+## Startup-sensitive tests
+
+Tests that need startup plugins re-initialized, a different runtime config, or other startup options cannot share the app.
+Put them in a separate Vitest config with normal isolation and run it with its own command, because the shared-app config does not support Vitest projects:
+
+```ts
+// vitest.isolated.config.ts
+import { defineVitestConfig } from "@nuxt/test-utils/config"
+
+export default defineVitestConfig({
+  test: {
+    include: ["test/nuxt-isolated/**/*.test.ts"],
+    environment: "nuxt",
+  },
+})
+```
+
+```sh
+vitest run
+vitest run --config vitest.isolated.config.ts
+```
+
+Keep the `include` patterns of the two configs from overlapping, so each file runs in one of them.
 
 ## Lifecycle
 
@@ -376,30 +398,6 @@ If Nuxt startup fails, the file fails with the original error, and a partially c
 Nuxt itself catches errors of plugins during startup and continues with a partially initialized app; the library treats such an error as a startup failure too, and reports it with the Nuxt error as its cause.
 If unmounting fails too, both errors are reported together in an `AggregateError`, the original one first.
 The next file of the worker tries the startup again from a clean module graph.
-
-## Startup-sensitive tests
-
-Tests that need startup plugins re-initialized, a different runtime config, or other startup options cannot share the app.
-Put them in a separate Vitest config with normal isolation and run it with its own command, because the shared-app config does not support Vitest projects:
-
-```ts
-// vitest.isolated.config.ts
-import { defineVitestConfig } from "@nuxt/test-utils/config"
-
-export default defineVitestConfig({
-  test: {
-    include: ["test/nuxt-isolated/**/*.test.ts"],
-    environment: "nuxt",
-  },
-})
-```
-
-```sh
-vitest run
-vitest run --config vitest.isolated.config.ts
-```
-
-Keep the `include` patterns of the two configs from overlapping, so each file runs in one of them.
 
 ## Compatibility and upstream
 
