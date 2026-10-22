@@ -40,13 +40,6 @@ it("does not reuse library state bound to another window", () => {
   store.resets.delete("bound-to-original")
 })
 
-it("does not reuse the adapter startup of another window", () => {
-  const adapterKey = Symbol.for("nuxt-vitest-shared-app:adapter")
-  const adapterState = (win: Window) => (win as unknown as Record<symbol, unknown>)[adapterKey]
-  expect(adapterState(original.window)).toMatchObject({ started: true })
-  expect(adapterState(enterNewWindow())).toBeUndefined()
-})
-
 it("rejects an app left in the global Nuxt context by another environment", () => {
   const app = useNuxtApp()
   const newWindow = enterNewWindow()

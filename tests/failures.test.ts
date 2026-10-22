@@ -7,54 +7,34 @@ const secondFile = "scenarios/startup/file-2.vitest.ts"
 const retryTest = "runs on exactly one mounted app with one set of subscriptions"
 
 describe("startup failure", () => {
-  it("retries in the next file when startup fails before app creation", async () => {
+  it("runs the next file on a retried startup when startup fails before app creation", async () => {
     const run = await runFixture("startup", { PROBE_STARTUP: "fail-before" })
     expect(run.suiteErrors.get(firstFile)).toContain("probe: startup failed before app creation")
     expect(run.test(retryTest, secondFile)?.status, run.output).toBe("passed")
     expect(run.reports("startup")).toEqual([{ startups: 2, mountedApps: 1, pings: 1 }])
   })
 
-  it("unmounts the partially created app and retries in the next file", async () => {
+  it("fails the next file when startup fails after app creation", async () => {
     const run = await runFixture("startup", { PROBE_STARTUP: "fail-after" })
     expect(run.suiteErrors.get(firstFile)).toContain("probe: startup failed after app creation")
-    expect(run.test(retryTest, secondFile)?.status, run.output).toBe("passed")
-    expect(run.reports("startup")).toEqual([{ startups: 2, mountedApps: 1, pings: 1 }])
+    expect(run.suiteErrors.get(secondFile)).toContain(
+      "the Nuxt app is not running in the current test environment (the Nuxt app is not mounted)",
+    )
   })
 
   it.each([
     ["fail-plugin", "probe: plugin failed"],
-    // Without the router, setupNuxt itself fails; the plugin error is still reported as the cause.
     ["fail-plugin-pre", "probe: pre plugin failed"],
-  ])("fails the startup on a plugin error that Nuxt caught (%s)", async (mode, message) => {
+    // The app stays unmounted, which the readiness check would report without the cause.
+    ["fail-mount", "probe: mount failed"],
+  ])("fails every file on a startup error that Nuxt caught (%s)", async (mode, message) => {
     const run = await runFixture("startup", { PROBE_STARTUP: mode })
     expect(run.suiteErrors.get(firstFile)).toBe(
       `nuxt-vitest-shared-app: Nuxt startup failed: ${message}`,
     )
     expect(run.output).toContain(`Caused by: Error: ${message}`)
-    expect(run.test(retryTest, secondFile)?.status, run.output).toBe("passed")
-    expect(run.reports("startup")).toEqual([{ startups: 2, mountedApps: 1, pings: 1 }])
-  })
-
-  it("fails every file on a plugin error with an upstream entry that does not retry", async () => {
-    const run = await runFixture("startup", {
-      STARTUP_MODE: "native",
-      SIMULATE_NATIVE_REUSE: "1",
-      PROBE_STARTUP: "fail-plugin",
-    })
-    expect(run.suiteErrors.get(firstFile)).toBe(
-      "nuxt-vitest-shared-app: Nuxt startup failed: probe: plugin failed",
-    )
     expect(run.suiteErrors.get(secondFile)).toBe(
       "nuxt-vitest-shared-app: Nuxt startup failed earlier in this environment.",
-    )
-  })
-
-  it("keeps the original error together with a rollback error", async () => {
-    const run = await runFixture("startup", { PROBE_STARTUP: "fail-rollback" })
-    // Vitest reports an AggregateError as its errors, the original one first.
-    expect(run.suiteErrors.get(firstFile)).toBe("probe: startup failed after app creation")
-    expect(run.output).toMatch(
-      /FAIL {2}scenarios\/startup\/file-1\.vitest\.ts .*\nError: probe: startup failed after app creation[\s\S]*FAIL {2}scenarios\/startup\/file-1\.vitest\.ts .*\nError: probe: unmount failed/,
     )
   })
 })

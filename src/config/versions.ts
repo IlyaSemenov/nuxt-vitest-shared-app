@@ -1,36 +1,22 @@
-/**
- * How the Nuxt app is started for the installed `@nuxt/test-utils` version.
- *
- * - `adapter`: the library replaces the `@nuxt/test-utils` runtime entry with its adapter entry.
- * - `native`: `@nuxt/test-utils` reuses the app itself; the library keeps its entry.
- */
-export type StartupMode = "adapter" | "native"
+/** The first `@nuxt/test-utils` release that starts Nuxt once per worker with `isolate: false`. */
+const MIN_VERSION = [4, 3, 3] as const
 
 /**
- * Tested `@nuxt/test-utils` release lines.
+ * Checks that the installed `@nuxt/test-utils` version reuses the Nuxt app across test files.
  *
- * Native reuse is detected by version only, until upstream offers a documented public signal:
- *
- * - https://github.com/nuxt/test-utils/issues/1750
- * - https://github.com/nuxt/test-utils/pull/1821
+ * @throws For older versions, their prereleases, and versions that cannot be parsed.
  */
-const TESTED_VERSIONS: ReadonlyArray<{ line: string; mode: StartupMode }> = [
-  { line: "4.3", mode: "adapter" },
-]
-
-/**
- * Resolves the startup mode for an installed `@nuxt/test-utils` version.
- *
- * @throws For versions that were not tested, instead of guessing.
- */
-export function resolveStartupMode(version: string): StartupMode {
-  const match = /^(\d+\.\d+)\.\d+$/.exec(version)
-  const tested = match && TESTED_VERSIONS.find((entry) => entry.line === match[1])
-  if (!tested) {
-    const lines = TESTED_VERSIONS.map((entry) => `${entry.line}.x`).join(", ")
+export function assertSupportedTestUtils(version: string) {
+  // Build metadata does not affect precedence.
+  const match = /^(\d+)\.(\d+)\.(\d+)(-[^+]+)?(\+.+)?$/.exec(version)
+  const parts = match ? match.slice(1, 4).map(Number) : []
+  const index = parts.findIndex((part, i) => part !== MIN_VERSION[i])
+  const order = index === -1 ? 0 : parts[index]! - MIN_VERSION[index]!
+  if (!match || order < 0 || (order === 0 && match[4])) {
+    // Releases 4.3.0–4.3.2 start Nuxt in every file; the 0.2 line of this library replaces their runtime entry.
+    const legacyLine = match && !match[4] && !match[5] && parts[0] === 4 && parts[1] === 3
     throw new Error(
-      `nuxt-vitest-shared-app: @nuxt/test-utils ${version} is not supported. Supported versions: ${lines}.`,
+      `nuxt-vitest-shared-app: @nuxt/test-utils ${version} is not supported. Install @nuxt/test-utils ${MIN_VERSION.join(".")} or later${legacyLine ? `, or use nuxt-vitest-shared-app 0.2.x with @nuxt/test-utils ${version}` : ""}.`,
     )
   }
-  return tested.mode
 }

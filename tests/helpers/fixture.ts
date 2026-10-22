@@ -7,11 +7,6 @@ import { fileURLToPath } from "node:url"
 export const rootDir = fileURLToPath(new URL("../..", import.meta.url))
 export const fixtureDir = join(rootDir, "tests/fixtures/app")
 
-/** Set when the whole suite runs in native mode against an upstream release. */
-export const nativeSuite = process.env.FIXTURE_STARTUP_MODE === "native"
-
-const startupModeEnv: Record<string, string> = nativeSuite ? { STARTUP_MODE: "native" } : {}
-
 /** Outcome of one fixture test. */
 export interface FixtureTest {
   status: string
@@ -48,7 +43,6 @@ interface JsonReport {
  * Runs one fixture scenario in a separate Vitest process.
  *
  * `env` selects scenario variants, see `tests/fixtures/app/vitest.config.ts` and `testing/probe-plugin.ts`.
- * `FIXTURE_STARTUP_MODE=native` runs every scenario with the installed upstream entry, to qualify a release with native app reuse.
  */
 export async function runFixture(
   scenario: string,
@@ -76,7 +70,6 @@ export async function runFixture(
         NO_COLOR: "1",
         VITE_CONFIG_NATIVE_IGNORE_WARNING: "true",
         SCENARIO: scenario,
-        ...startupModeEnv,
         ...env,
       },
     },

@@ -1,4 +1,4 @@
-// Fails the first startup attempt of a worker before the router plugin when PROBE_STARTUP is "fail-plugin-pre".
+// Fails the first startup attempt of a worker in a `pre` plugin when PROBE_STARTUP is "fail-plugin-pre".
 export default defineNuxtPlugin({
   enforce: "pre",
   setup() {

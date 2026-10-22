@@ -1,17 +1,24 @@
 # nuxt-vitest-shared-app
 
-Run Nuxt component tests in Vitest without starting Nuxt again for every test file.
+Run Nuxt component tests in Vitest on one shared Nuxt app per worker, with deterministic per-test cleanup and typed per-test overrides of Nuxt auto-imports.
 
-With plain `@nuxt/test-utils`, its runtime entry in `test.setupFiles` calls `vi.resetModules()` and starts Nuxt in `beforeAll` for every test file, even with `isolate: false`.
-In a project with many small component test files, most of the run time goes into Nuxt startup.
+With `isolate: false`, `@nuxt/test-utils` 4.3.3 and later start Nuxt once per Vitest worker and run all its test files on that app, instead of starting Nuxt for every test file.
+In a project with many small component test files, this removes most of the run time.
 
-With this library, each Vitest worker starts Nuxt once, and all its test files run on that app.
-As a data point from one application with a local workaround, [nuxt/test-utils#1750](https://github.com/nuxt/test-utils/issues/1750) reports 12 files with 22 tests going from 19.6 s to 6.6 s with one worker; your numbers will differ.
+The shared app also keeps whatever each test leaves behind:
 
+- mounted wrappers, the current route, Nuxt state and data, and errors;
+- nodes appended to `document.body`, `localStorage`, `sessionStorage`, and cookies;
+- fake timers, stubbed globals, and envs;
+- module mocks: `mockNuxtImport` in a later file does not change references that the started app already captured.
+
+Tests that passed with per-file startup start to depend on each other and on the order of files.
+This library replaces `defineVitestConfig` and makes the shared app predictable.
 You keep the `@nuxt/test-utils` API you know (`environment: "nuxt"`, `mountSuspended`, `mockNuxtImport`) and get:
 
 - deterministic cleanup of documented Nuxt and test-owned state after each test, with hooks for your own resources;
-- typed per-test overrides of Nuxt auto-imports.
+- typed per-test overrides of Nuxt auto-imports;
+- checks of the config and of the running app, rejection of concurrent tests, and failing fast after a cleanup leaves the environment in an unknown state.
 
 It does not reset the whole app state.
 State created by startup plugins is not re-created between tests or files.
@@ -27,7 +34,7 @@ Supported versions:
 
 | Package            | Versions                 |
 | ------------------ | ------------------------ |
-| `@nuxt/test-utils` | 4.3.x                    |
+| `@nuxt/test-utils` | 4.3.3 and later 4.x      |
 | `nuxt`             | 4.4.2 and later 4.x      |
 | `vitest`           | 4.1.0 and later 4.x, 5.x |
 | `vue`              | 3.5.30 and later 3.x     |
@@ -36,6 +43,7 @@ Supported versions:
 
 CI runs the whole suite with the lowest listed versions, with the versions pinned in the lockfile, and with the latest compatible Vitest 4 release.
 jsdom is not supported in this version.
+For `@nuxt/test-utils` 4.3.0–4.3.2, use `nuxt-vitest-shared-app` 0.2.x.
 
 ## Quick start
 
@@ -66,6 +74,7 @@ If some tests start failing or depend on the order of files, see [Switching from
 
 The wrapper passes the config to `defineVitestConfig` from `@nuxt/test-utils/config`, adds the library lifecycle, and checks the settings a shared app relies on:
 
+- `@nuxt/test-utils` must be 4.3.3 or later, because older releases start Nuxt in every test file;
 - `test.environment` must be `"nuxt"` at the top level; Vitest projects and browser mode are not supported;
 - `test.isolate` must be `false`;
 - `test.pool` must be `"threads"` or `"forks"`; `isolate` has no effect in the VM pools;
@@ -84,7 +93,7 @@ With `silenceSuspenseInfo: true`, Vue's `<Suspense> is an experimental feature a
 
 ## Switching from per-file startup
 
-With plain `@nuxt/test-utils`, every test file starts from fresh modules and globals.
+With per-file startup (`isolate: true`, the Vitest default), every test file starts from fresh modules and globals.
 With a shared app, modules stay cached for the following files of the worker, so objects created at module level live for the whole environment.
 Tests that passed with per-file startup may rely on that implicitly and start to depend on the order of files.
 
@@ -320,13 +329,13 @@ Keep the `include` patterns of the two configs from overlapping, so each file ru
 | Library `beforeAll` / `beforeEach` hooks                                       | One test file                                     |
 | Import overrides, test cleanups and per-test resources                         | One test                                          |
 
-For each test file of a worker, the library:
+`@nuxt/test-utils` starts Nuxt in the first test file of an environment and reuses the app in the following files.
+For each test file of a worker, the library then:
 
-1. starts Nuxt if this environment has no app yet, or awaits the startup in progress;
-2. checks that the Nuxt app is mounted in the current environment's document, and fails the file with a clear error otherwise;
-3. captures the route baseline and the direct children of `document.body` once per environment, right after the first successful startup and before any project `beforeAll` or `beforeEach`;
-4. fails tests that run concurrently in the worker (`test.concurrent`, `describe.concurrent`);
-5. cleans up after each test.
+1. checks that the Nuxt app is mounted in the current environment's document, and fails the file with a clear error otherwise;
+2. captures the route baseline and the direct children of `document.body` once per environment, right after the first successful startup and before any project `beforeAll` or `beforeEach`;
+3. fails tests that run concurrently in the worker (`test.concurrent`, `describe.concurrent`);
+4. cleans up after each test.
 
 Vitest drops hooks between files even with `isolate: false`, so the lifecycle hooks are registered again for every file.
 
@@ -343,7 +352,7 @@ Parallelism across workers is supported: each worker has its own environment and
 
 Modules are evaluated once per environment and stay cached for the following files.
 A singleton created by a plugin at startup is the same instance that components and test files see in every file of the worker.
-Only the first file of an environment, or the next file after a failed startup, starts from a clean module graph.
+Only a file that starts Nuxt starts from a clean module graph.
 
 ### Files with another environment
 
@@ -394,27 +403,18 @@ There is no recovery in this version.
 
 ### Failed startup
 
-If Nuxt startup fails, the file fails with the original error, and a partially created app is unmounted.
-Nuxt itself catches errors of plugins during startup and continues with a partially initialized app; the library treats such an error as a startup failure too, and reports it with the Nuxt error as its cause.
-If unmounting fails too, both errors are reported together in an `AggregateError`, the original one first.
-The next file of the worker tries the startup again from a clean module graph.
+If Nuxt startup fails, the file fails with the original error.
+Nuxt itself catches errors of plugins and of mounting during startup and leaves a partially initialized app; the library treats such an error as a startup failure too, reports it with the Nuxt error as its cause, and fails every following file of the environment with an error that references it.
+After other startup errors, `@nuxt/test-utils` decides whether the next file retries the startup; when it does not, the following files fail because the Nuxt app is not running.
 
-## Compatibility and upstream
+## Alternatives
 
-Until `@nuxt/test-utils` reuses the app natively, the library replaces its runtime entry with an adapter that follows the lifecycle of [nuxt/test-utils#1821](https://github.com/nuxt/test-utils/pull/1821).
-The adapter loads the internal `setupNuxt` from `@nuxt/test-utils/dist/runtime/shared/nuxt.mjs` through the Vitest module runner, because it shares state with `mountSuspended`.
-This internal module is not part of the public `@nuxt/test-utils` API, so each supported release line is tested explicitly.
+[untestutils](https://github.com/s00d/untestutils) is a separate Nuxt test harness that replaces `@nuxt/test-utils`.
+Since `@untestutils/nuxt` 0.7.2, its unit environment (`environment: "untestutils"`) can share one Nuxt app per worker with `environmentOptions.nuxt.appIsolation: "worker"`, resets app state between tests, and ships similar per-test override and worker state helpers; see [s00d/untestutils#1](https://github.com/s00d/untestutils/issues/1).
 
-| Installed `@nuxt/test-utils`                            | Behavior                                                        |
-| ------------------------------------------------------- | --------------------------------------------------------------- |
-| 4.3.x                                                   | The adapter replaces the upstream runtime entry                 |
-| A tested release with native reuse (none published yet) | The upstream entry is kept; the library lifecycle runs after it |
-| Any other version                                       | The config throws an error with the installed version           |
+The main differences:
 
-Native reuse is detected by version, not by inspecting `@nuxt/test-utils` internals.
-Your tests and setup files stay the same when the library switches to native reuse.
-Upstream work on native reuse is tracked in [nuxt/test-utils#1750](https://github.com/nuxt/test-utils/issues/1750) and [nuxt/test-utils#1821](https://github.com/nuxt/test-utils/pull/1821).
-
-[untestutils](https://github.com/s00d/untestutils) is a test harness whose Nuxt unit environment (`environment: "untestutils"`) has the same per-file startup.
-Worker-scoped app reuse there is requested in [s00d/untestutils#1](https://github.com/s00d/untestutils/issues/1).
-This library supports only `@nuxt/test-utils` for now; untestutils support may be added later, natively if that request is implemented.
+- this library keeps `@nuxt/test-utils` and its `nuxt` environment, while untestutils replaces them;
+- here, the shared app and the cleanup always apply, while in untestutils the worker mode is opt-in and resets can be turned off per layer;
+- after a failed or timed out cleanup, this library fails every following test of the environment, while untestutils can dispose and restart the shared app;
+- this library fails concurrent tests in a worker, while untestutils runs them one at a time with `maxConcurrency: 1`.

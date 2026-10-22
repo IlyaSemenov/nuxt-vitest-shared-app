@@ -4,8 +4,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path"
 
 import type { defineVitestConfig } from "@nuxt/test-utils/config"
 
-import { setupNuxtPlugin } from "../adapter/setup-nuxt-plugin"
-import { resolveStartupMode, type StartupMode } from "./versions"
+import { assertSupportedTestUtils } from "./versions"
 
 /** Config accepted by `defineVitestConfig` from `@nuxt/test-utils/config`. */
 export type NuxtVitestConfig = NonNullable<Parameters<typeof defineVitestConfig>[0]>
@@ -26,12 +25,6 @@ export interface TestUtilsInstallation {
   runtimeDir: string
 }
 
-/** Setup files of this library. */
-export interface LibraryFiles {
-  adapterEntry: string
-  lifecycle: string
-}
-
 const SUSPENSE_INFO = "<Suspense> is an experimental feature and its API will likely change."
 
 /** Locates the `@nuxt/test-utils` installation that `@nuxt/test-utils/config` resolves to from `from`. */
@@ -47,6 +40,8 @@ export function locateTestUtils(from: string): TestUtilsInstallation {
 /**
  * Turns a config resolved by `defineVitestConfig` into a shared-app config, in place.
  *
+ * `lifecycle` is the path of the library lifecycle setup file.
+ *
  * @throws When the config is incompatible with a shared app or the installed `@nuxt/test-utils` is not supported.
  */
 export function applySharedApp(
@@ -54,15 +49,14 @@ export function applySharedApp(
   {
     options,
     installation,
-    files,
-    mode = resolveStartupMode(installation.version),
+    lifecycle,
   }: {
     options: SharedNuxtVitestOptions
     installation: TestUtilsInstallation
-    files: LibraryFiles
-    mode?: StartupMode
+    lifecycle: string
   },
 ): ResolvedNuxtVitestConfig {
+  assertSupportedTestUtils(installation.version)
   const test = (config.test ??= {})
   const fail = (message: string) => {
     throw new Error(`nuxt-vitest-shared-app: ${message}`)
@@ -100,15 +94,12 @@ export function applySharedApp(
     )
   }
   const entryIndex = entryIndexes[0]!
-  const entry = mode === "adapter" ? files.adapterEntry : setupFiles[entryIndex]!
   // Always app startup, then the library lifecycle, then project setup files.
   test.setupFiles = [
-    entry,
-    files.lifecycle,
+    setupFiles[entryIndex]!,
+    lifecycle,
     ...setupFiles.filter((_, index) => index !== entryIndex),
   ]
-
-  if (mode === "adapter") (config.plugins ??= []).push(setupNuxtPlugin(installation))
 
   // The runtime files import `nuxt/app` and need Nuxt aliases, so they must go through the module runner.
   const deps = ((test.server ??= {}).deps ??= {})

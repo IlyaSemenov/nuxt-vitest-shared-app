@@ -8,7 +8,7 @@ import { beforeAll, beforeEach } from "vitest"
 
 import { getEnvironmentStore, isNuxtEnvironment, type EnvironmentStore } from "../store"
 import { cleanupAfterTest, restoreTestRunner } from "./cleanup"
-import { assertAppRunning } from "./readiness"
+import { assertAppRunning, isMountedElsewhere } from "./readiness"
 import { getRealRouter } from "./router"
 import { getStartupError } from "./startup-error"
 
@@ -34,15 +34,17 @@ function installLifecycle() {
       })
     }
     const { tryUseNuxtApp } = await import("nuxt/app")
-    const nuxtApp = assertAppRunning(tryUseNuxtApp(), document)
-    if (!store.baseline) {
-      // The adapter already retries such failures; this catches them from an upstream entry.
-      const startupError = getStartupError(nuxtApp)
+    const currentApp = tryUseNuxtApp()
+    // Nuxt catches plugin and mount errors during startup, and `@nuxt/test-utils` keeps the app for the following files.
+    // Checked before the readiness check, which would report an app that a mount error left unmounted without the cause.
+    if (!store.baseline && currentApp && !isMountedElsewhere(currentApp, document)) {
+      const startupError = getStartupError(currentApp)
       if (startupError) {
         store.startupFailure = startupError
         throw startupError
       }
     }
+    const nuxtApp = assertAppRunning(currentApp, document)
     store.baseline ??= {
       route: getRealRouter(nuxtApp).currentRoute.value.fullPath,
       bodyChildren: new Set(document.body.children),

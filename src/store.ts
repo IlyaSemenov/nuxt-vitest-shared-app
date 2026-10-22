@@ -27,7 +27,7 @@ export interface EnvironmentStore {
   readonly window: Window
   readonly document: Document
   baseline?: EnvironmentBaseline
-  /** The Nuxt startup error found by the readiness check when the startup entry cannot retry. */
+  /** The startup error that Nuxt caught, found by the readiness check; following files fail with it. */
   startupFailure?: Error
   /** The cleanup failure that left this environment in an unknown state. */
   contamination?: Error

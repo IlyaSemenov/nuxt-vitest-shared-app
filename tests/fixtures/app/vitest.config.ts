@@ -4,9 +4,8 @@ import { fileURLToPath } from "node:url"
 import { BaseSequencer, type TestSpecification } from "vitest/node"
 
 import { createSharedNuxtVitestConfig } from "#src/config/define"
-import type { StartupMode } from "#src/config/versions"
 
-import { nativeReuseEntryPlugin, startupProbePlugin } from "./testing/probe-plugin"
+import { startupProbePlugin } from "./testing/probe-plugin"
 
 const src = (path: string) => fileURLToPath(new URL(`../../../src/${path}`, import.meta.url))
 const scenario = process.env.SCENARIO ?? "lifecycle"
@@ -21,10 +20,7 @@ class NameSequencer extends BaseSequencer {
 
 export default createSharedNuxtVitestConfig(
   {
-    plugins: [
-      startupProbePlugin(),
-      ...(process.env.SIMULATE_NATIVE_REUSE ? [nativeReuseEntryPlugin()] : []),
-    ],
+    plugins: [startupProbePlugin()],
     define: { __PROBE_STARTUP__: JSON.stringify(process.env.PROBE_STARTUP ?? "") },
     resolve: {
       alias: {
@@ -33,6 +29,8 @@ export default createSharedNuxtVitestConfig(
       },
     },
     test: {
+      // The probe plugin bakes environment variables into transformed modules, which the cache would share between runs.
+      fsModuleCache: false,
       include: [`scenarios/${scenario}/*.vitest.ts`],
       environment: "nuxt",
       pool: process.env.POOL ?? "threads",
@@ -48,5 +46,4 @@ export default createSharedNuxtVitestConfig(
   },
   { silenceSuspenseInfo: true },
   new URL("../../../src/config.ts", import.meta.url).href,
-  process.env.STARTUP_MODE as StartupMode | undefined,
 )

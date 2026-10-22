@@ -22,24 +22,21 @@ Do not catalog files or restate information evident from their names and locatio
 ## Architecture
 
 - Keep each concern in its place:
-  - `src/config/`: the config wrapper and the version policy;
-  - `src/adapter/`: the lifecycle adapter for `@nuxt/test-utils` versions without native app reuse;
+  - `src/config/`: the config wrapper and the `@nuxt/test-utils` version check;
   - `src/runtime/`: the library lifecycle setup file, cleanup, and their helpers;
   - root modules: the public API with its environment-bound store, and the optional DOM helpers in `src/dom.ts`.
-- Keep in `src/adapter/` everything that becomes unused once `@nuxt/test-utils` reuses the app natively, including its dependencies on `@nuxt/test-utils` and Nuxt internals; upstream native reuse must be able to replace it without changes to user tests or setup files.
-- `src/config/**` and `src/adapter/setup-nuxt-plugin.ts` run in Node while Vitest loads the config; everything else runs inside the Nuxt environment through the Vitest module runner.
+- Leave Nuxt startup and app reuse to the `@nuxt/test-utils` runtime entry; the library lifecycle runs right after it and must not import `@nuxt/test-utils` internals.
+- `src/config/**` runs in Node while Vitest loads the config; everything else runs inside the Nuxt environment through the Vitest module runner.
 - Bind persistent state to the Nuxt environment `window` (`src/store.ts`), never to module scope.
   Use `Symbol.for` keys for markers that must survive module re-evaluation.
 - Register lifecycle hooks in every file.
 - Keep `overridableNuxtImport` and its module free of Nuxt imports; mock factories run during hoisted mock evaluation.
 - Import Nuxt modules in runtime files lazily inside hooks, never at module top level.
 - Use the app's router instance (`getRealRouter`), never auto-imported router composables.
-- Load internal `@nuxt/test-utils` modules through `#`-prefixed module ids resolved by a config plugin; other ids may be imported natively by Vitest 4.
 
 ## Version policy
 
-- Add a `@nuxt/test-utils` release line to `src/config/versions.ts` only after the whole suite passes against it.
-- Before adding a release with native reuse, run the suite with `FIXTURE_STARTUP_MODE=native` against that release.
+- Keep the minimum `@nuxt/test-utils` version in `src/config/versions.ts` equal to the lowest version in the `peerDependencies`.
 - Update the supported versions in `README.md`, the `peerDependencies`, and the compatibility matrix in `.github/workflows/test-and-release.yml` together.
 
 ## Documentation
@@ -86,12 +83,12 @@ Describe the user-visible change.
   Generate random inputs from an explicit seed and print the seed in failure messages so the failing input can be replayed.
 
 - Test runtime behavior through fixture scenarios in `tests/fixtures/app/scenarios/<name>/`, run in a separate Vitest process by `runFixture` from `tests/*.test.ts`.
-  A scenario may add `setup.ts`; environment variables documented in `tests/fixtures/app/testing/probe-plugin.ts` and `tests/fixtures/app/vitest.config.ts` select failure injection and startup modes.
+  A scenario may add `setup.ts`; environment variables documented in `tests/fixtures/app/testing/probe-plugin.ts` and `tests/fixtures/app/vitest.config.ts` select failure injection and pool settings.
 - Fixture files run in name order within a scenario; number files by the order a scenario relies on.
 - Look up fixture test results with `run.test(name, file?)`; pass the file when several files share a test name.
 - Report values from fixture tests with `report()` and read them with `run.reports()`.
 - Check `AggregateError` and error-cause details in `run.output`; the JSON report keeps only the first error.
-- Keep assertions valid for every tested Nuxt version, e.g. Nuxt 4.4 keeps keys cleared by `clearNuxtState` with an `undefined` value while Nuxt 4.5 deletes them.
+- Keep assertions valid for every supported Nuxt version, e.g. Nuxt 4.4 keeps keys cleared by `clearNuxtState` with an `undefined` value while Nuxt 4.5 deletes them.
 
 ## Checks
 

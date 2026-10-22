@@ -11,7 +11,7 @@ import {
 
 const installation = locateTestUtils(import.meta.url)
 const upstreamEntry = join(installation.runtimeDir, "entry.mjs")
-const files = { adapterEntry: "/lib/adapter-entry.mjs", lifecycle: "/lib/lifecycle.mjs" }
+const lifecycle = "/lib/lifecycle.mjs"
 
 function resolvedConfig(test: Record<string, unknown> = {}): ResolvedNuxtVitestConfig {
   return {
@@ -27,27 +27,16 @@ function resolvedConfig(test: Record<string, unknown> = {}): ResolvedNuxtVitestC
 
 function apply(
   config: ResolvedNuxtVitestConfig,
-  {
-    mode = "adapter",
-    options = {},
-  }: { mode?: "adapter" | "native"; options?: SharedNuxtVitestOptions } = {},
+  { options = {} }: { options?: SharedNuxtVitestOptions } = {},
 ) {
-  return applySharedApp(config, { options, installation, files, mode }).test!
+  return applySharedApp(config, { options, installation, lifecycle }).test!
 }
 
 describe("setup files", () => {
-  it("replaces the upstream entry with the adapter entry in adapter mode", () => {
+  it("adds the lifecycle right after the upstream entry", () => {
     expect(apply(resolvedConfig()).setupFiles).toEqual([
-      files.adapterEntry,
-      files.lifecycle,
-      "./project-setup.ts",
-    ])
-  })
-
-  it("keeps the upstream entry in native mode", () => {
-    expect(apply(resolvedConfig(), { mode: "native" }).setupFiles).toEqual([
       upstreamEntry,
-      files.lifecycle,
+      lifecycle,
       "./project-setup.ts",
     ])
   })
@@ -55,8 +44,8 @@ describe("setup files", () => {
   it("puts startup and lifecycle before project setup files listed earlier", () => {
     const config = resolvedConfig({ setupFiles: ["./first.ts", upstreamEntry, "./second.ts"] })
     expect(apply(config).setupFiles).toEqual([
-      files.adapterEntry,
-      files.lifecycle,
+      upstreamEntry,
+      lifecycle,
       "./first.ts",
       "./second.ts",
     ])
@@ -179,11 +168,9 @@ describe("silenceSuspenseInfo", () => {
   })
 })
 
-describe("version policy", () => {
-  it("applies the policy of the installed version by default", () => {
-    const unsupported = { ...installation, version: "9.0.0" }
-    expect(() =>
-      applySharedApp(resolvedConfig(), { options: {}, installation: unsupported, files }),
-    ).toThrow("@nuxt/test-utils 9.0.0 is not supported.")
-  })
+it("rejects an installed @nuxt/test-utils without app reuse", () => {
+  const unsupported = { ...installation, version: "4.3.2" }
+  expect(() =>
+    applySharedApp(resolvedConfig(), { options: {}, installation: unsupported, lifecycle }),
+  ).toThrow("@nuxt/test-utils 4.3.2 is not supported.")
 })
