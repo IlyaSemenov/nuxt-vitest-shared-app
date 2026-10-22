@@ -1,5 +1,13 @@
 # nuxt-vitest-shared-app
 
+## 0.3.0
+
+### Minor Changes
+
+- 0595269: Add `mountNuxtComposable()`, which runs a composable in a component mounted in the shared app without navigating.
+- 0595269: Export `stubVisibleIntersectionObserver` from the package root and remove the `nuxt-vitest-shared-app/dom` entry point.
+- 5c71d1c: Require `@nuxt/test-utils` 4.3.3 or later and use its own Nuxt app reuse.
+
 ## 0.2.0
 
 ### Minor Changes
