@@ -1,5 +1,5 @@
 import { mountSuspended } from "@nuxt/test-utils/runtime"
-import { stubVisibleIntersectionObserver } from "nuxt-vitest-shared-app/dom"
+import { stubVisibleIntersectionObserver } from "nuxt-vitest-shared-app"
 import { expect, it } from "vitest"
 import { nextTick } from "vue"
 

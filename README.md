@@ -280,10 +280,43 @@ getOrCreateWorkerState<T>(name: string, create: () => T): T
 Returns state bound to the current Nuxt environment, creating it on first use.
 Use it for project helpers whose state must survive module re-evaluation between files, such as a test API client that the started app also uses.
 
-## DOM helpers
+## Test helpers
+
+### `mountNuxtComposable(composable)`
 
 ```ts
-import { stubVisibleIntersectionObserver } from "nuxt-vitest-shared-app/dom"
+mountNuxtComposable<T>(composable: () => T): Promise<{ result: T; wrapper: VueWrapper }>
+```
+
+Calls `composable` in the setup of a component mounted with `mountSuspended`, so it runs with the app's `inject()` and lifecycle hooks, and returns its result with the wrapper of the host component:
+
+```ts
+import { mountNuxtComposable } from "nuxt-vitest-shared-app"
+import { expect, it } from "vitest"
+
+import { useCounter } from "~/composables/counter"
+
+it("increments the counter", async () => {
+  const { result } = await mountNuxtComposable(() => useCounter())
+  result.increment()
+  expect(result.count.value).toBe(1)
+})
+```
+
+- It calls `composable` synchronously and does not await its return value: hooks and watchers registered after an `await` are not bound to the host component, and the cleanup does not stop them.
+- It rejects with the error `composable` throws.
+- It does not navigate: the composable sees the current route, the route baseline or the route the test navigated to.
+- The host component is rendered outside `<RouterView>`, so in-component route guards such as `onBeforeRouteLeave` are not registered.
+- The cleanup unmounts the host component after the test, which runs the composable's unmount hooks and stops its watchers; call `wrapper.unmount()` to test unmounting within the test.
+
+`mountSuspended` itself navigates to its `route` option, `/` by default, before setup, unless the app is already on that route.
+Such a navigation waits for `setTimeout`, so it never finishes under `vi.useFakeTimers()`.
+If the current route may differ, e.g. because the index page redirects and the route baseline is not `/`, pass `route: false` or enable fake timers after mounting.
+
+### `stubVisibleIntersectionObserver()`
+
+```ts
+import { stubVisibleIntersectionObserver } from "nuxt-vitest-shared-app"
 import { beforeEach } from "vitest"
 
 beforeEach(() => {

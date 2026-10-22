@@ -37,6 +37,10 @@ it("stubs a visible IntersectionObserver for one test", async () => {
   expectPassed(await runFixture("intersection-observer"))
 })
 
+it("mounts a composable on the current route and unmounts it in the cleanup", async () => {
+  expectPassed(await runFixture("composable"))
+})
+
 it("binds state to the environment window and supports files with other environments", async () => {
   expectPassed(await runFixture("environments"))
 })

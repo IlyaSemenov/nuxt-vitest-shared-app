@@ -1,6 +1,10 @@
 import { mountSuspended } from "@nuxt/test-utils/runtime"
-import { overrideNuxtImport, overrideNuxtRoute } from "nuxt-vitest-shared-app"
-import { stubVisibleIntersectionObserver } from "nuxt-vitest-shared-app/dom"
+import {
+  mountNuxtComposable,
+  overrideNuxtImport,
+  overrideNuxtRoute,
+  stubVisibleIntersectionObserver,
+} from "nuxt-vitest-shared-app"
 import { expect, expectTypeOf, it } from "vitest"
 
 import UserName from "~/components/UserName.vue"
@@ -29,8 +33,11 @@ it("types overrides with the augmented registry", () => {
   // Runtime calls above replaced the project default; the next test starts fresh.
 })
 
-it("runs project resets and exposes the DOM helper", () => {
+it("runs project resets and exposes the test helpers", async () => {
   expect(resets.count).toBeGreaterThan(0)
   expectTypeOf(stubVisibleIntersectionObserver).toEqualTypeOf<() => void>()
   stubVisibleIntersectionObserver()
+  const { result } = await mountNuxtComposable(() => useRoute().path)
+  expectTypeOf(result).toEqualTypeOf<string>()
+  expect(result).toBe("/")
 })

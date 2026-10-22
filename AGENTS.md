@@ -24,7 +24,8 @@ Do not catalog files or restate information evident from their names and locatio
 - Keep each concern in its place:
   - `src/config/`: the config wrapper and the `@nuxt/test-utils` version check;
   - `src/runtime/`: the library lifecycle setup file, cleanup, and their helpers;
-  - root modules: the public API with its environment-bound store, and the optional DOM helpers in `src/dom.ts`.
+  - `src/helpers/`: optional test helpers that build on the shared app but are not part of its lifecycle;
+  - root modules: the public API with its environment-bound store.
 - Leave Nuxt startup and app reuse to the `@nuxt/test-utils` runtime entry; the library lifecycle runs right after it and must not import `@nuxt/test-utils` internals.
 - `src/config/**` runs in Node while Vitest loads the config; everything else runs inside the Nuxt environment through the Vitest module runner.
 - Bind persistent state to the Nuxt environment `window` (`src/store.ts`), never to module scope.

@@ -1,3 +1,5 @@
+export { stubVisibleIntersectionObserver } from "./helpers/dom"
+export { mountNuxtComposable, type MountedNuxtComposable } from "./helpers/mount"
 export {
   overridableNuxtImport,
   overrideNuxtImport,

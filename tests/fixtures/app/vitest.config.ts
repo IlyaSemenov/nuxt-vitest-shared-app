@@ -24,7 +24,6 @@ export default createSharedNuxtVitestConfig(
     define: { __PROBE_STARTUP__: JSON.stringify(process.env.PROBE_STARTUP ?? "") },
     resolve: {
       alias: {
-        "nuxt-vitest-shared-app/dom": src("dom.ts"),
         "nuxt-vitest-shared-app": src("index.ts"),
       },
     },
