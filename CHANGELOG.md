@@ -1,5 +1,11 @@
 # nuxt-vitest-shared-app
 
+## 0.4.0
+
+### Minor Changes
+
+- 9df010f: `stubVisibleIntersectionObserver()` returns a function that changes the visibility of observed targets during the test.
+
 ## 0.3.0
 
 ### Minor Changes
