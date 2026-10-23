@@ -2,10 +2,11 @@
 
 Run Nuxt component tests in Vitest on one shared Nuxt app per worker, with deterministic per-test cleanup and typed per-test overrides of Nuxt auto-imports.
 
-With `isolate: false`, `@nuxt/test-utils` 4.3.3 and later start Nuxt once per Vitest worker and run all its test files on that app, instead of starting Nuxt for every test file.
-In a project with many small component test files, this removes most of the run time.
+Starting Nuxt for every test file takes most of the run time in a project with many small component test files.
+`@nuxt/test-utils` 4.3.3 and later can skip that: with `isolate: false`, each Vitest worker starts Nuxt once and runs all its test files on that app.
+As a data point from one application, [nuxt/test-utils#1750](https://github.com/nuxt/test-utils/issues/1750) reports 95 files with 276 tests going from 45.14 s to 12.20 s with 4 workers and from 144.47 s to 18.86 s with one worker; your numbers will differ.
 
-The shared app also keeps whatever each test leaves behind:
+The catch is that the shared app keeps whatever each test leaves behind:
 
 - mounted wrappers, the current route, Nuxt state and data, and errors;
 - nodes appended to `document.body`, `localStorage`, `sessionStorage`, and cookies;
@@ -13,8 +14,8 @@ The shared app also keeps whatever each test leaves behind:
 - module mocks: `mockNuxtImport` in a later file does not change references that the started app already captured.
 
 Tests that passed with per-file startup start to depend on each other and on the order of files.
-This library replaces `defineVitestConfig` and makes the shared app predictable.
-You keep the `@nuxt/test-utils` API you know (`environment: "nuxt"`, `mountSuspended`, `mockNuxtImport`) and get:
+This library makes the shared app safe to turn on.
+It replaces `defineVitestConfig`, so you keep the `@nuxt/test-utils` API you know (`environment: "nuxt"`, `mountSuspended`, `mockNuxtImport`) and get:
 
 - deterministic cleanup of documented Nuxt and test-owned state after each test, with hooks for your own resources;
 - typed per-test overrides of Nuxt auto-imports;
