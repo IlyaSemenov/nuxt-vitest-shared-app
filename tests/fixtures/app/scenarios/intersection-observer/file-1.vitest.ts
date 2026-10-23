@@ -15,6 +15,36 @@ it("reports observed elements as visible", async () => {
   expect(wrapper.text()).toBe("visible")
 })
 
+it("reports the visibility set by the test to the observers of the target", async () => {
+  const setVisible = stubVisibleIntersectionObserver()
+  const changed = await mountSuspended(VisibilityProbe)
+  const unchanged = await mountSuspended(VisibilityProbe)
+  await setVisible(false, changed.element)
+  expect(changed.text()).toBe("hidden")
+  expect(unchanged.text()).toBe("visible")
+  await setVisible(false)
+  await setVisible(true)
+  expect(changed.text()).toBe("visible")
+  expect(unchanged.text()).toBe("visible")
+})
+
+it("stops reporting targets that are unobserved or disconnected", async () => {
+  const setVisible = stubVisibleIntersectionObserver()
+  const reports: boolean[] = []
+  const observer = new IntersectionObserver((entries) => {
+    reports.push(...entries.map((entry) => entry.isIntersecting))
+  })
+  const unobserved = document.createElement("div")
+  const disconnected = document.createElement("div")
+  observer.observe(unobserved)
+  observer.unobserve(unobserved)
+  await setVisible(false)
+  observer.observe(disconnected)
+  observer.disconnect()
+  await setVisible(false)
+  expect(reports).toEqual([true, true])
+})
+
 it("reports the window as visible for infinite scroll", async () => {
   stubVisibleIntersectionObserver()
   const wrapper = await mountSuspended(InfiniteScrollProbe)

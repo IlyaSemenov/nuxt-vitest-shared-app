@@ -330,6 +330,21 @@ Any other target throws a `TypeError`.
 Entries include `time`, which vueuse `useElementVisibility` uses to pick the latest entry.
 The stub is installed with `vi.stubGlobal`, so the cleanup removes it after the test; install it in `beforeEach` or in the test itself.
 
+It returns a function that changes the visibility later in the test, e.g. to check what a component does when it scrolls out of view:
+
+```ts
+it("pauses when scrolled out of view", async () => {
+  const setVisible = stubVisibleIntersectionObserver()
+  const wrapper = await mountSuspended(Carousel)
+  await setVisible(false, wrapper.element)
+  // ...
+})
+```
+
+- It reports `target` to the observers that observe it; without `target`, it reports every observed target.
+- It resolves after the next Vue tick, so watchers of the visibility have run; await each call, or watchers see only the last of several visibility changes.
+- Targets observed later are still reported as visible in `observe()`.
+
 ## Startup-sensitive tests
 
 Tests that need startup plugins re-initialized, a different runtime config, or other startup options cannot share the app.

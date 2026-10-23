@@ -1,4 +1,5 @@
 import { vi } from "vitest"
+import { nextTick } from "vue"
 
 /**
  * Stubs the global `IntersectionObserver` with one that reports every observed target as visible immediately in `observe()`.
@@ -8,17 +9,39 @@ import { vi } from "vitest"
  *
  * happy-dom and the `@nuxt/test-utils` mock never call the observer callback, so components that wait for visibility never render their content.
  * The stub is installed with `vi.stubGlobal`, so the per-test cleanup removes it.
+ *
+ * @returns A function that reports `target`, or every observed target when it is omitted, as visible or hidden to the observers that observe it, and resolves after the next Vue tick, so watchers of the visibility have run.
  */
-export function stubVisibleIntersectionObserver(): void {
-  vi.stubGlobal("IntersectionObserver", VisibleIntersectionObserver)
+export function stubVisibleIntersectionObserver(): (
+  visible: boolean,
+  target?: Element,
+) => Promise<void> {
+  const observers = new Set<StubIntersectionObserver>()
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class extends StubIntersectionObserver {
+      constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        super(callback, options)
+        observers.add(this)
+      }
+    },
+  )
+  return async (visible, target) => {
+    for (const observer of observers) {
+      observer.report(visible, target)
+    }
+    // Without the tick, two calls in a row would be batched, and watchers would see only the last visibility.
+    await nextTick()
+  }
 }
 
-class VisibleIntersectionObserver implements IntersectionObserver {
+class StubIntersectionObserver implements IntersectionObserver {
   readonly root: Element | Document | null
   readonly rootMargin: string
   readonly scrollMargin = "0px"
   readonly thresholds: readonly number[]
   readonly #callback: IntersectionObserverCallback
+  readonly #targets = new Set<Element>()
 
   constructor(callback: IntersectionObserverCallback, options: IntersectionObserverInit = {}) {
     this.#callback = callback
@@ -29,26 +52,48 @@ class VisibleIntersectionObserver implements IntersectionObserver {
   }
 
   observe(target: Element): void {
-    const rect = measure(target)
-    const entry: IntersectionObserverEntry = {
-      target,
-      isIntersecting: true,
-      intersectionRatio: 1,
-      boundingClientRect: rect,
-      intersectionRect: rect,
-      rootBounds: null,
-      // vueuse `useElementVisibility` keeps the entry with the latest `time`.
-      time: performance.now(),
-    }
+    const entry = createEntry(target, true)
+    this.#targets.add(target)
     this.#callback([entry], this)
   }
 
-  unobserve(): void {}
+  unobserve(target: Element): void {
+    this.#targets.delete(target)
+  }
 
-  disconnect(): void {}
+  disconnect(): void {
+    this.#targets.clear()
+  }
 
   takeRecords(): IntersectionObserverEntry[] {
     return []
+  }
+
+  /** Calls the observer callback for `target`, or for every observed target when it is omitted, if it is observed. */
+  report(visible: boolean, target?: Element): void {
+    const targets = target
+      ? [...this.#targets].filter((observed) => observed === target)
+      : [...this.#targets]
+    if (targets.length) {
+      this.#callback(
+        targets.map((observed) => createEntry(observed, visible)),
+        this,
+      )
+    }
+  }
+}
+
+function createEntry(target: Element, visible: boolean): IntersectionObserverEntry {
+  const rect = measure(target)
+  return {
+    target,
+    isIntersecting: visible,
+    intersectionRatio: visible ? 1 : 0,
+    boundingClientRect: rect,
+    intersectionRect: visible ? rect : new DOMRectReadOnly(),
+    rootBounds: null,
+    // vueuse `useElementVisibility` keeps the entry with the latest `time`.
+    time: performance.now(),
   }
 }
 

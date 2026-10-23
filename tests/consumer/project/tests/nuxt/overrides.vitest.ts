@@ -35,7 +35,9 @@ it("types overrides with the augmented registry", () => {
 
 it("runs project resets and exposes the test helpers", async () => {
   expect(resets.count).toBeGreaterThan(0)
-  expectTypeOf(stubVisibleIntersectionObserver).toEqualTypeOf<() => void>()
+  expectTypeOf(stubVisibleIntersectionObserver).toEqualTypeOf<
+    () => (visible: boolean, target?: Element) => Promise<void>
+  >()
   stubVisibleIntersectionObserver()
   const { result } = await mountNuxtComposable(() => useRoute().path)
   expectTypeOf(result).toEqualTypeOf<string>()
