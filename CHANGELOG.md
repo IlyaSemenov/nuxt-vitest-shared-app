@@ -1,5 +1,11 @@
 # nuxt-vitest-shared-app
 
+## 0.4.1
+
+### Patch Changes
+
+- 274f6fe: Run tests when `@nuxt/test-utils`, `nuxt`, or the library are installed outside the workspace root detected by Vite, e.g. in the package store of an outer workspace.
+
 ## 0.4.0
 
 ### Minor Changes
