@@ -1,9 +1,13 @@
-import { join } from "node:path"
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { dirname, join } from "node:path"
+import { pathToFileURL } from "node:url"
 
-import { describe, expect, it } from "vitest"
+import { afterAll, describe, expect, it } from "vitest"
 
 import {
   applySharedApp,
+  locateRuntimeDirs,
   locateTestUtils,
   type ResolvedNuxtVitestConfig,
   type SharedNuxtVitestOptions,
@@ -29,7 +33,7 @@ function apply(
   config: ResolvedNuxtVitestConfig,
   { options = {} }: { options?: SharedNuxtVitestOptions } = {},
 ) {
-  return applySharedApp(config, { options, installation, lifecycle }).test!
+  return applySharedApp(config, { options, installation, lifecycle, runtimeDirs: [] }).test!
 }
 
 describe("setup files", () => {
@@ -142,6 +146,66 @@ describe("test settings", () => {
   })
 })
 
+describe("server.fs.allow", () => {
+  // An outer workspace keeps all packages in its store, outside of the nested workspace root of the project.
+  const outer = realpathSync(mkdtempSync(join(tmpdir(), "nuxt-vitest-shared-app-")))
+  afterAll(() => rmSync(outer, { recursive: true, force: true }))
+  const store = join(outer, "node_modules/.store")
+  const nested = join(outer, "nested")
+  const write = (path: string, content: unknown = "") => {
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, typeof content === "string" ? content : JSON.stringify(content))
+  }
+  const symlink = (path: string, target: string) => {
+    mkdirSync(dirname(path), { recursive: true })
+    symlinkSync(target, path)
+  }
+
+  write(join(outer, "package.json"), { workspaces: ["nested"] })
+  write(join(nested, "package.json"), { workspaces: ["web"] })
+
+  const libraryDir = join(store, "library/node_modules/nuxt-vitest-shared-app")
+  write(join(libraryDir, "dist/config.mjs"))
+  write(join(libraryDir, "dist/runtime/lifecycle.mjs"))
+  const testUtilsDir = join(store, "test-utils/node_modules/@nuxt/test-utils")
+  write(join(testUtilsDir, "package.json"), {
+    name: "@nuxt/test-utils",
+    version: installation.version,
+    exports: { "./config": "./dist/config.mjs", "./package.json": "./package.json" },
+  })
+  write(join(testUtilsDir, "dist/config.mjs"))
+  write(join(testUtilsDir, "dist/runtime/entry.mjs"))
+  const nuxtDir = join(store, "nuxt/node_modules/nuxt")
+  write(join(nuxtDir, "package.json"), { name: "nuxt" })
+  symlink(join(store, "library/node_modules/@nuxt/test-utils"), testUtilsDir)
+  symlink(join(store, "library/node_modules/nuxt"), nuxtDir)
+
+  it("adds the runtime packages installed outside the workspace and keeps the existing entries", () => {
+    const libraryUrl = pathToFileURL(join(libraryDir, "dist/config.mjs")).href
+    const outerInstallation = locateTestUtils(libraryUrl)
+    const config = resolvedConfig({
+      setupFiles: [join(outerInstallation.runtimeDir, "entry.mjs")],
+    })
+    // Vite and Nuxt stop at the nested workspace root.
+    config.server = { fs: { allow: [nested, "/project/extra"] } }
+    const allow = applySharedApp(config, {
+      options: {},
+      installation: outerInstallation,
+      lifecycle: join(libraryDir, "dist/runtime/lifecycle.mjs"),
+      runtimeDirs: locateRuntimeDirs(libraryUrl),
+    }).server!.fs!.allow!
+
+    // The library allows its own build output and the whole packages it depends on, but no other packages of the store.
+    expect(allow).toEqual([
+      nested,
+      "/project/extra",
+      join(libraryDir, "dist"),
+      testUtilsDir,
+      nuxtDir,
+    ])
+  })
+})
+
 describe("silenceSuspenseInfo", () => {
   const suspenseInfo =
     "[Vue warn]: <Suspense> is an experimental feature and its API will likely change."
@@ -171,6 +235,11 @@ describe("silenceSuspenseInfo", () => {
 it("rejects an installed @nuxt/test-utils without app reuse", () => {
   const unsupported = { ...installation, version: "4.3.2" }
   expect(() =>
-    applySharedApp(resolvedConfig(), { options: {}, installation: unsupported, lifecycle }),
+    applySharedApp(resolvedConfig(), {
+      options: {},
+      installation: unsupported,
+      lifecycle,
+      runtimeDirs: [],
+    }),
   ).toThrow("@nuxt/test-utils 4.3.2 is not supported.")
 })

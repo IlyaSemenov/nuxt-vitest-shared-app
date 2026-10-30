@@ -82,6 +82,9 @@ The wrapper passes the config to `defineVitestConfig` from `@nuxt/test-utils/con
 - `test.sequence.setupFiles` is set to `"list"`, and `"parallel"` is rejected;
 - `test.sequence.hooks: "parallel"` and `test.sequence.concurrent: true` are rejected.
 
+The wrapper also adds the real directories of the library, `@nuxt/test-utils`, and `nuxt` to `server.fs.allow`, keeping your entries.
+Vite then loads them even when they are installed outside the workspace root it detects, e.g. in the package store of an outer workspace.
+
 ### Options
 
 The second argument takes options:

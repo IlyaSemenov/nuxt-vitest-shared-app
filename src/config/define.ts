@@ -4,6 +4,7 @@ import { defineVitestConfig } from "@nuxt/test-utils/config"
 
 import {
   applySharedApp,
+  locateRuntimeDirs,
   locateTestUtils,
   type NuxtVitestConfig,
   type SharedNuxtVitestOptions,
@@ -25,5 +26,6 @@ export function createSharedNuxtVitestConfig(
       // The same installation whose `defineVitestConfig` produced the config.
       installation: locateTestUtils(libraryUrl),
       lifecycle,
+      runtimeDirs: locateRuntimeDirs(libraryUrl),
     })
 }

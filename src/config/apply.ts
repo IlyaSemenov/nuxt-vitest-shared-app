@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync } from "node:fs"
 import { createRequire } from "node:module"
 import { dirname, isAbsolute, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import type { defineVitestConfig } from "@nuxt/test-utils/config"
 
@@ -38,9 +39,22 @@ export function locateTestUtils(from: string): TestUtilsInstallation {
 }
 
 /**
+ * Locates the directories with the modules that the library loaded from `libraryUrl` adds to the test runtime: its own files, `@nuxt/test-utils`, and `nuxt`.
+ *
+ * Returns real paths, since Vite checks file access by the real path of a module.
+ */
+export function locateRuntimeDirs(libraryUrl: string): string[] {
+  const require = createRequire(libraryUrl)
+  return [
+    dirname(fileURLToPath(libraryUrl)),
+    ...["@nuxt/test-utils", "nuxt"].map((name) => dirname(require.resolve(`${name}/package.json`))),
+  ].map((dir) => realpathSync(dir))
+}
+
+/**
  * Turns a config resolved by `defineVitestConfig` into a shared-app config, in place.
  *
- * `lifecycle` is the path of the library lifecycle setup file.
+ * `lifecycle` is the path of the library lifecycle setup file, and `runtimeDirs` are the directories from `locateRuntimeDirs`.
  *
  * @throws When the config is incompatible with a shared app or the installed `@nuxt/test-utils` is not supported.
  */
@@ -50,10 +64,12 @@ export function applySharedApp(
     options,
     installation,
     lifecycle,
+    runtimeDirs,
   }: {
     options: SharedNuxtVitestOptions
     installation: TestUtilsInstallation
     lifecycle: string
+    runtimeDirs: string[]
   },
 ): ResolvedNuxtVitestConfig {
   assertSupportedTestUtils(installation.version)
@@ -106,6 +122,11 @@ export function applySharedApp(
   if (deps.inline !== true) {
     deps.inline = [...(deps.inline ?? []), /[\\/]node_modules[\\/]nuxt-vitest-shared-app[\\/]/]
   }
+
+  // Nuxt allows the workspace and its own runtime directories, and Vitest adds the workspace root and its package to any list.
+  // The runtime packages may still be installed outside of them, e.g. in the package store of an outer workspace.
+  const fs = ((config.server ??= {}).fs ??= {})
+  fs.allow = [...new Set([...(fs.allow ?? []), ...runtimeDirs])]
 
   if (options.silenceSuspenseInfo) {
     const onConsoleLog = test.onConsoleLog
