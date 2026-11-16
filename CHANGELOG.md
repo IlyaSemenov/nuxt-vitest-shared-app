@@ -1,5 +1,12 @@
 # nuxt-vitest-shared-app
 
+## 0.5.0
+
+### Minor Changes
+
+- 165b0a7: Drop support for Vitest 4; Vitest 5 is required.
+- b773adf: Add `setNuxtTestRoot` to render mounted components and composables inside app providers, and `mountNuxtComponent` to mount a component inside the configured root.
+
 ## 0.4.1
 
 ### Patch Changes
