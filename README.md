@@ -68,7 +68,7 @@ Existing `mountSuspended` tests run on the shared app as they are.
 
 After each test, the library unmounts wrappers, restores timers, stubbed globals, and envs, clears Nuxt data and state, storage, and cookies, and navigates back to the initial route; see [Cleanup](#cleanup) for the full list.
 
-Add a project setup file only when you need [per-test overrides](#overriding-auto-imports-per-test) or [project resets](#project-resets).
+Add a project setup file only when you need [per-test overrides](#overriding-auto-imports-per-test), [project resets](#project-resets), or a [root](#setnuxttestrootroot) with app providers.
 If some tests start failing or depend on the order of files, see [Switching from per-file startup](#switching-from-per-file-startup).
 
 ### Config checks
@@ -286,6 +286,76 @@ Use it for project helpers whose state must survive module re-evaluation between
 
 ## Test helpers
 
+### `setNuxtTestRoot(root)`
+
+```ts
+setNuxtTestRoot(root: Component): void
+```
+
+`mountSuspended` renders the component without `app.vue`, so providers that `app.vue` renders around pages are missing in tests, e.g. Nuxt UI components inside `UApp` fail to mount without its tooltip provider.
+Move the providers from `app.vue` into a component that renders them around its default slot:
+
+```vue
+<!-- app/components/AppProviders.vue -->
+<template>
+  <UApp>
+    <slot />
+  </UApp>
+</template>
+```
+
+```vue
+<!-- app/app.vue -->
+<template>
+  <AppProviders>
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
+  </AppProviders>
+</template>
+```
+
+Then set it as the root once in the project setup file, so tests render inside the same providers as the app:
+
+```ts
+// test/nuxt/setup.ts
+import { setNuxtTestRoot } from "nuxt-vitest-shared-app"
+
+import AppProviders from "~/components/AppProviders.vue"
+
+setNuxtTestRoot(AppProviders)
+```
+
+[`mountNuxtComponent`](#mountnuxtcomponentcomponent-options) and [`mountNuxtComposable`](#mountnuxtcomposablecomposable) render inside the root; `mountSuspended` does not.
+The root stays for the whole environment; setting it again replaces it.
+
+### `mountNuxtComponent(component, options?)`
+
+```ts
+mountNuxtComponent<T>(component: T, options?: MountNuxtComponentOptions<T>): Promise<VueWrapper>
+```
+
+Mounts `component` with `mountSuspended` inside the [root](#setnuxttestrootroot), if one is set, and returns the wrapper of `component`:
+
+```ts
+import { mountNuxtComponent } from "nuxt-vitest-shared-app"
+import { expect, it } from "vitest"
+
+import ConfirmButton from "~/components/ConfirmButton.vue"
+
+it("confirms", async () => {
+  const wrapper = await mountNuxtComponent(ConfirmButton, { props: { label: "Delete" } })
+  await wrapper.get("button").trigger("click")
+  expect(wrapper.emitted("confirm")).toHaveLength(1)
+})
+```
+
+- It takes the `mountSuspended` options, typed by the component, except `shallow`, `spy`, and `scoped`; use `mountSuspended` for them.
+- It rejects functional components, which `mountSuspended` does not mount either.
+- It attaches the mount to `document.body`, as the app is attached to the document, so teleported content and visibility checks work; pass `attachTo` to attach it elsewhere.
+- With a root, `props()`, `emitted()`, `vm`, `html()`, and queries refer to `component`, while `setProps()` and `unmount()` act on the whole mount.
+- It rejects when the root does not render `component` in its default slot.
+
 ### `mountNuxtComposable(composable)`
 
 ```ts
@@ -309,6 +379,7 @@ it("increments the counter", async () => {
 
 - It calls `composable` synchronously and does not await its return value: hooks and watchers registered after an `await` are not bound to the host component, and the cleanup does not stop them.
 - It rejects with the error `composable` throws.
+- It mounts the host component inside the [root](#setnuxttestrootroot), if one is set, so the composable can inject what the root provides.
 - It does not navigate: the composable sees the current route, the route baseline or the route the test navigated to.
 - The host component is rendered outside `<RouterView>`, so in-component route guards such as `onBeforeRouteLeave` are not registered.
 - The cleanup unmounts the host component after the test, which runs the composable's unmount hooks and stops its watchers; call `wrapper.unmount()` to test unmounting within the test.
@@ -375,11 +446,11 @@ Keep the `include` patterns of the two configs from overlapping, so each file ru
 
 ## Lifecycle
 
-| What                                                                           | Lifetime                                          |
-| ------------------------------------------------------------------------------ | ------------------------------------------------- |
-| Started app, route baseline, project resets, overridable imports, worker state | The Nuxt environment (its `window`) of the worker |
-| Library `beforeAll` / `beforeEach` hooks                                       | One test file                                     |
-| Import overrides, test cleanups and per-test resources                         | One test                                          |
+| What                                                                                 | Lifetime                                          |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Started app, route baseline, project resets, overridable imports, worker state, root | The Nuxt environment (its `window`) of the worker |
+| Library `beforeAll` / `beforeEach` hooks                                             | One test file                                     |
+| Import overrides, test cleanups and per-test resources                               | One test                                          |
 
 `@nuxt/test-utils` starts Nuxt in the first test file of an environment and reuses the app in the following files.
 For each test file of a worker, the library then:
@@ -409,7 +480,7 @@ Only a file that starts Nuxt starts from a clean module graph.
 ### Files with another environment
 
 Test files with another environment, such as `// @vitest-environment node`, run without the library lifecycle.
-In such files, `overridableNuxtImport` factories return the fallback or the original import, and `registerNuxtTestReset` registers nothing, so the same project setup file works for them.
+In such files, `overridableNuxtImport` factories return the fallback or the original import, `registerNuxtTestReset` registers nothing, and `setNuxtTestRoot` sets nothing, so the same project setup file works for them.
 `overrideNuxtImport`, `overrideNuxtRoute`, `onNuxtTestCleanup` and `getOrCreateWorkerState` throw outside the `nuxt` environment.
 
 ## Cleanup

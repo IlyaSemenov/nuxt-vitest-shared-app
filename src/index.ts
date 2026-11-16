@@ -1,5 +1,11 @@
 export { stubVisibleIntersectionObserver } from "./helpers/dom"
-export { mountNuxtComposable, type MountedNuxtComposable } from "./helpers/mount"
+export {
+  mountNuxtComponent,
+  mountNuxtComposable,
+  type MountedNuxtComponent,
+  type MountedNuxtComposable,
+  type MountNuxtComponentOptions,
+} from "./helpers/mount"
 export {
   overridableNuxtImport,
   overrideNuxtImport,
@@ -9,5 +15,6 @@ export {
   type TestNuxtRoute,
 } from "./overrides"
 export { registerNuxtTestReset } from "./resets"
+export { setNuxtTestRoot } from "./root"
 export { onNuxtTestCleanup } from "./test-cleanup"
 export { getOrCreateWorkerState } from "./worker-state"

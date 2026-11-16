@@ -1,3 +1,5 @@
+import type { Component } from "vue"
+
 /** Function signature stored in the override registry; public types come from `TestNuxtImports`. */
 export type ImportFunction = (this: unknown, ...args: never[]) => unknown
 
@@ -36,6 +38,8 @@ export interface EnvironmentStore {
   readonly imports: Map<string, OverridableImport>
   readonly overrides: Map<string, ImportFunction>
   readonly resets: Map<string, ResetRegistration>
+  /** The component set with `setNuxtTestRoot`. */
+  root?: Component
   /** Callbacks registered with `onNuxtTestCleanup` for the running test; unset outside a test. */
   testCleanups?: Array<() => unknown>
   readonly workerState: Map<string, unknown>

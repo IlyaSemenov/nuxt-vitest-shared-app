@@ -41,6 +41,10 @@ it("mounts a composable on the current route and unmounts it in the cleanup", as
   expectPassed(await runFixture("composable"))
 })
 
+it("mounts components and composables inside the root set for the environment", async () => {
+  expectPassed(await runFixture("mount"))
+})
+
 it("binds state to the environment window and supports files with other environments", async () => {
   expectPassed(await runFixture("environments"))
 })
