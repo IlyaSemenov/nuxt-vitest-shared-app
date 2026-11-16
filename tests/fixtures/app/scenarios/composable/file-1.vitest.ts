@@ -25,7 +25,7 @@ it("unmounts the composable in the cleanup", async () => {
   const seen: number[] = []
   let unmounted = false
   await mountNuxtComposable(() => {
-    watch(source, (value) => seen.push(value), { flush: "sync" })
+    watch(source, value => seen.push(value), { flush: "sync" })
     onUnmounted(() => (unmounted = true))
   })
   source.value = 1

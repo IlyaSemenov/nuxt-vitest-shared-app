@@ -1,7 +1,7 @@
 import {
   getEnvironmentStore,
-  isNuxtEnvironment,
   type ImportFunction,
+  isNuxtEnvironment,
   type OverridableImport,
 } from "./store"
 
@@ -50,7 +50,7 @@ export function overridableNuxtImport<Name extends TestNuxtImportName>(
   fallback?: TestNuxtImports[Name],
 ): (original: TestNuxtImports[Name]) => TestNuxtImports[Name] {
   // Mock factories are evaluated during hoisted mock setup, so this must stay free of Nuxt imports.
-  return (original) => {
+  return original => {
     if (!isNuxtEnvironment()) return fallback ?? original
     const store = getEnvironmentStore()
     const existing = store.imports.get(name)

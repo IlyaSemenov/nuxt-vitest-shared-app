@@ -26,7 +26,7 @@ try {
   const hostVersions = Object.fromEntries(
     await Promise.all(
       ["@nuxt/test-utils", "@vue/test-utils", "happy-dom", "nuxt", "vitest", "vue"].map(
-        async (name) => {
+        async name => {
           const manifest = join(root, "node_modules", name, "package.json")
           const { version } = JSON.parse(await readFile(manifest, "utf8")) as { version: string }
           return [name, version]

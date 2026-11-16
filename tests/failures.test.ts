@@ -93,7 +93,7 @@ describe("cleanup failure", () => {
 
   it.each(["before-next-test", "after-next-test"])(
     "keeps the environment contaminated when a timed out cleanup finishes late (%s)",
-    async (release) => {
+    async release => {
       const run = await runFixture("late-cleanup", { HOOK_TIMEOUT: "500", LATE_RELEASE: release })
       expect(run.test("slow cleanup leaves a slow cleanup")?.status).toBe("failed")
       expect(run.test("next suite runs after the late cleanup")?.errors).toContain(

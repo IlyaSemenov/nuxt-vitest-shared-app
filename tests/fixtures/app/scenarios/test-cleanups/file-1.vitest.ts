@@ -35,7 +35,7 @@ describe("order and position in the cleanup", () => {
     })
     onNuxtTestCleanup(async () => {
       // The older callback must not start before this one settles.
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise(resolve => setTimeout(resolve, 10))
       log.push("newest")
     })
   })

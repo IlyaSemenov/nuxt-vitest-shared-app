@@ -1,11 +1,11 @@
 import { expect, it } from "vitest"
 
-import { expectPassed, runFixture, type FixtureRun } from "./helpers/fixture"
+import { expectPassed, type FixtureRun, runFixture } from "./helpers/fixture"
 
 function expectSingleStartupAcrossFiles(run: FixtureRun, files: string[]) {
   const reports = run.reports("file") as Array<{ file: string; startups: number }>
-  expect(reports.map((report) => report.file).sort()).toEqual(files)
-  expect(reports.every((report) => report.startups === 1)).toBe(true)
+  expect(reports.map(report => report.file).sort()).toEqual(files)
+  expect(reports.every(report => report.startups === 1)).toBe(true)
 }
 
 it("shares one app between files of a worker, with cleanup, hooks and resets in every file", async () => {
@@ -25,8 +25,8 @@ it("starts one app per worker", async () => {
   expectPassed(run)
   const files = run.reports("file") as Array<{ pool: string; startups: number }>
   expect(files).toHaveLength(4)
-  expect(new Set(files.map((file) => file.pool)).size).toBe(2)
-  expect(files.every((file) => file.startups === 1)).toBe(true)
+  expect(new Set(files.map(file => file.pool)).size).toBe(2)
+  expect(files.every(file => file.startups === 1)).toBe(true)
 })
 
 it("keeps the route baseline captured before project beforeAll hooks", async () => {

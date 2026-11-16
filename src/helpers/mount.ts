@@ -42,7 +42,7 @@ export async function mountNuxtComponent<T>(
     )
   }
   const unsupported = UNSUPPORTED_OPTIONS.filter(
-    (key) => (options as Record<string, unknown> | undefined)?.[key],
+    key => (options as Record<string, unknown> | undefined)?.[key],
   )
   if (unsupported.length) {
     throw new TypeError(
@@ -127,7 +127,7 @@ async function mountInRoot(
   // Matching by the mounted instance, not just by type or name, skips other instances of the same component, e.g. recursive ones.
   const wrapper = mounted
     .findAllComponents(component)
-    .find((found) => found.getCurrentComponent() === instance)
+    .find(found => found.getCurrentComponent() === instance)
   if (!wrapper) {
     throw new Error(
       "nuxt-vitest-shared-app: the root set with setNuxtTestRoot did not render the mounted component in its default slot.",

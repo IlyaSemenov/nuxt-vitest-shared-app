@@ -8,7 +8,7 @@ export const cleanupControl = getOrCreateWorkerState("cleanup-control", () => ({
 registerNuxtTestReset("slow", async () => {
   if (!cleanupControl.slow) return
   cleanupControl.slow = false
-  await new Promise<void>((resolve) => {
+  await new Promise<void>(resolve => {
     cleanupControl.release = resolve
   })
 })

@@ -3,6 +3,7 @@ import { vi } from "vitest"
 import { nextTick } from "vue"
 
 import type { EnvironmentBaseline, EnvironmentStore } from "../store"
+
 import { getRealRouter } from "./router"
 
 /** A failed cleanup step and its error. */
@@ -17,9 +18,9 @@ export class CleanupError extends AggregateError {
 
   constructor(failures: CleanupFailure[]) {
     super(
-      failures.map((failure) => failure.error),
+      failures.map(failure => failure.error),
       `nuxt-vitest-shared-app: cleanup failed.\n${failures
-        .map((failure) => `- ${failure.step}: ${errorMessage(failure.error)}`)
+        .map(failure => `- ${failure.step}: ${errorMessage(failure.error)}`)
         .join("\n")}`,
     )
     this.name = "CleanupError"

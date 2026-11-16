@@ -27,7 +27,7 @@ expectTypeOf(overridableNuxtImport("useGreeting")).toEqualTypeOf<
 overridableNuxtImport("useCookie")
 
 // The fallback is typed by the registry.
-overridableNuxtImport("useGreeting", (name) => {
+overridableNuxtImport("useGreeting", name => {
   expectTypeOf(name).toEqualTypeOf<string>()
   return name
 })
@@ -35,7 +35,7 @@ overridableNuxtImport("useGreeting", (name) => {
 overridableNuxtImport("useGreeting", () => 1)
 
 // Implementations are typed by the registry, including contextual parameter types.
-overrideNuxtImport("useGreeting", (name) => {
+overrideNuxtImport("useGreeting", name => {
   expectTypeOf(name).toEqualTypeOf<string>()
   return name.toUpperCase()
 })

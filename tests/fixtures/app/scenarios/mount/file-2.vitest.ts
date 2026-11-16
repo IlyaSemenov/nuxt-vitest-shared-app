@@ -78,7 +78,7 @@ it("unmounts the root with the component in the cleanup", async () => {
 it("waits for a component with async setup", async () => {
   const AsyncProbe = defineComponent({
     async setup() {
-      await new Promise((resolve) => setTimeout(resolve))
+      await new Promise(resolve => setTimeout(resolve))
       return () => h("p", "resolved")
     },
   })

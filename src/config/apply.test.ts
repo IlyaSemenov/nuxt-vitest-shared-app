@@ -131,7 +131,7 @@ describe("test settings", () => {
     expect(inline[0]).toBe("some-dep")
     expect(
       inline.some(
-        (pattern) =>
+        pattern =>
           pattern instanceof RegExp &&
           pattern.test("/app/node_modules/nuxt-vitest-shared-app/dist/runtime/lifecycle.mjs"),
       ),

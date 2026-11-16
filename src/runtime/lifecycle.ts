@@ -6,7 +6,8 @@
 import { disableAutoUnmount, enableAutoUnmount } from "@vue/test-utils"
 import { beforeAll, beforeEach } from "vitest"
 
-import { getEnvironmentStore, isNuxtEnvironment, type EnvironmentStore } from "../store"
+import { type EnvironmentStore, getEnvironmentStore, isNuxtEnvironment } from "../store"
+
 import { cleanupAfterTest, restoreTestRunner } from "./cleanup"
 import { assertAppRunning, isMountedElsewhere } from "./readiness"
 import { getRealRouter } from "./router"
@@ -19,7 +20,7 @@ function installLifecycle() {
   let unmountWrappers: (() => void) | undefined
   // `enableAutoUnmount` throws when called twice, and every file needs its own callback.
   disableAutoUnmount()
-  enableAutoUnmount((unmount) => {
+  enableAutoUnmount(unmount => {
     unmountWrappers = unmount
   })
 

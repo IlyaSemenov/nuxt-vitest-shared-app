@@ -47,8 +47,8 @@ export function locateRuntimeDirs(libraryUrl: string): string[] {
   const require = createRequire(libraryUrl)
   return [
     dirname(fileURLToPath(libraryUrl)),
-    ...["@nuxt/test-utils", "nuxt"].map((name) => dirname(require.resolve(`${name}/package.json`))),
-  ].map((dir) => realpathSync(dir))
+    ...["@nuxt/test-utils", "nuxt"].map(name => dirname(require.resolve(`${name}/package.json`))),
+  ].map(dir => realpathSync(dir))
 }
 
 /**

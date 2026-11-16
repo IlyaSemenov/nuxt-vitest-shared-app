@@ -75,9 +75,9 @@ export async function runFixture(
     },
   )
   let output = ""
-  child.stdout.on("data", (chunk) => (output += chunk))
-  child.stderr.on("data", (chunk) => (output += chunk))
-  const exitCode = await new Promise<number | null>((resolve) => child.on("close", resolve))
+  child.stdout.on("data", chunk => (output += chunk))
+  child.stderr.on("data", chunk => (output += chunk))
+  const exitCode = await new Promise<number | null>(resolve => child.on("close", resolve))
 
   let report: JsonReport
   try {
@@ -113,8 +113,8 @@ export async function runFixture(
       return matches[0]?.[1]
     },
     suiteErrors,
-    reports: (key) =>
-      [...output.matchAll(new RegExp(`^report:${key} (.*)$`, "gm"))].map((match) =>
+    reports: key =>
+      [...output.matchAll(new RegExp(`^report:${key} (.*)$`, "gm"))].map(match =>
         JSON.parse(match[1]!),
       ),
   }

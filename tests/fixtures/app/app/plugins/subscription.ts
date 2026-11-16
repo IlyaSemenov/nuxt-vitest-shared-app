@@ -1,5 +1,5 @@
 // A window subscription released on app unmount; a stale app left behind by a failed startup would duplicate it.
-export default defineNuxtPlugin((nuxtApp) => {
+export default defineNuxtPlugin(nuxtApp => {
   const onPing = () => {
     window.__pings = (window.__pings ?? 0) + 1
   }

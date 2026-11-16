@@ -10,7 +10,7 @@ import { expect, it, vi } from "vitest"
 import GreetingProbe from "~/components/GreetingProbe.vue"
 
 it("overrides auto-imports used by the started app", async () => {
-  overrideNuxtImport("useGreeting", (name) => `Hi, ${name}`)
+  overrideNuxtImport("useGreeting", name => `Hi, ${name}`)
   overrideNuxtRoute({ params: { name: "Ann" } })
   const wrapper = await mountSuspended(GreetingProbe)
   expect(wrapper.text()).toBe("Hi, Ann")

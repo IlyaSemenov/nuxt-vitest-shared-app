@@ -31,8 +31,8 @@ it("reports the visibility set by the test to the observers of the target", asyn
 it("stops reporting targets that are unobserved or disconnected", async () => {
   const setVisible = stubVisibleIntersectionObserver()
   const reports: boolean[] = []
-  const observer = new IntersectionObserver((entries) => {
-    reports.push(...entries.map((entry) => entry.isIntersecting))
+  const observer = new IntersectionObserver(entries => {
+    reports.push(...entries.map(entry => entry.isIntersecting))
   })
   const unobserved = document.createElement("div")
   const disconnected = document.createElement("div")
@@ -55,8 +55,8 @@ it("reports the window as visible for infinite scroll", async () => {
 it("accepts the document and rejects targets that are not elements", () => {
   stubVisibleIntersectionObserver()
   const targets: unknown[] = []
-  const observer = new IntersectionObserver((entries) => {
-    targets.push(...entries.map((entry) => entry.target))
+  const observer = new IntersectionObserver(entries => {
+    targets.push(...entries.map(entry => entry.target))
   })
   observer.observe(document as unknown as Element)
   expect(targets).toEqual([document])

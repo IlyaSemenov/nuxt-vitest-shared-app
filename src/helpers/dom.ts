@@ -72,11 +72,11 @@ class StubIntersectionObserver implements IntersectionObserver {
   /** Calls the observer callback for `target`, or for every observed target when it is omitted, if it is observed. */
   report(visible: boolean, target?: Element): void {
     const targets = target
-      ? [...this.#targets].filter((observed) => observed === target)
+      ? [...this.#targets].filter(observed => observed === target)
       : [...this.#targets]
     if (targets.length) {
       this.#callback(
-        targets.map((observed) => createEntry(observed, visible)),
+        targets.map(observed => createEntry(observed, visible)),
         this,
       )
     }

@@ -1,6 +1,7 @@
 import { afterAll, describe, it } from "vitest"
 
 import { report } from "../../testing/report"
+
 import { cleanupControl } from "./setup"
 
 // When the timed out cleanup finishes: `before-next-test` or `after-next-test`.
@@ -8,7 +9,7 @@ const release = process.env.LATE_RELEASE
 
 async function finishCleanup() {
   cleanupControl.release()
-  await new Promise((resolve) => setTimeout(resolve, 100))
+  await new Promise(resolve => setTimeout(resolve, 100))
 }
 
 describe("slow cleanup", () => {

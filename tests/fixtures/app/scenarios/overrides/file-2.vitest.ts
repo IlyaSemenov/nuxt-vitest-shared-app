@@ -5,7 +5,7 @@ import { expect, it } from "vitest"
 import GreetingProbe from "~/components/GreetingProbe.vue"
 
 it("keeps overrides working in the next file", async () => {
-  overrideNuxtImport("useGreeting", (name) => `Hey, ${name}`)
+  overrideNuxtImport("useGreeting", name => `Hey, ${name}`)
   const wrapper = await mountSuspended(GreetingProbe, { route: "/" })
   expect(wrapper.text()).toBe("Hey, nobody")
 })
