@@ -33,16 +33,16 @@ npm install -D nuxt-vitest-shared-app
 
 Supported versions:
 
-| Package            | Versions                 |
-| ------------------ | ------------------------ |
-| `@nuxt/test-utils` | 4.3.3 and later 4.x      |
-| `nuxt`             | 4.4.2 and later 4.x      |
-| `vitest`           | 4.1.0 and later 4.x, 5.x |
-| `vue`              | 3.5.30 and later 3.x     |
-| `@vue/test-utils`  | 2.4.2 and later 2.x      |
-| `happy-dom`        | 20.0.11 and later        |
+| Package            | Versions             |
+| ------------------ | -------------------- |
+| `@nuxt/test-utils` | 4.3.3 and later 4.x  |
+| `nuxt`             | 4.4.2 and later 4.x  |
+| `vitest`           | 5.0.0 and later 5.x  |
+| `vue`              | 3.5.30 and later 3.x |
+| `@vue/test-utils`  | 2.4.2 and later 2.x  |
+| `happy-dom`        | 20.0.11 and later    |
 
-CI runs the whole suite with the lowest listed versions, with the versions pinned in the lockfile, and with the latest compatible Vitest 4 release.
+CI runs the whole suite with the lowest listed versions and with the versions pinned in the lockfile.
 jsdom is not supported in this version.
 For `@nuxt/test-utils` 4.3.0–4.3.2, use `nuxt-vitest-shared-app` 0.2.x.
 

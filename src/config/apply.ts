@@ -91,7 +91,7 @@ export function applySharedApp(
   }
 
   const sequence = (test.sequence ??= {})
-  // Vitest 4 and 5 differ in the default, and the startup entry must finish before the lifecycle and project setup files.
+  // The startup entry must finish before the lifecycle and project setup files.
   if (sequence.setupFiles === "parallel") fail('test.sequence.setupFiles must be "list".')
   sequence.setupFiles = "list"
   // Parallel hooks would let the lifecycle and project hooks run before the startup has finished.
