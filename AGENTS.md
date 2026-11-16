@@ -38,7 +38,7 @@ Do not catalog files or restate information evident from their names and locatio
 ## Version policy
 
 - Keep the minimum `@nuxt/test-utils` version in `src/config/versions.ts` equal to the lowest version in the `peerDependencies`.
-- Update the supported versions in `README.md`, the `peerDependencies`, and the compatibility matrix in `.github/workflows/test-and-release.yml` together.
+- Update the supported versions in `README.md`, the `peerDependencies`, and the compatibility matrix in `.github/workflows/test.yml` together.
 
 ## Documentation
 
@@ -72,7 +72,7 @@ Describe the user-visible change.
 
 - Briefly describe the user-observable change or new capability in the public contract, without implementation details or rationale.
   Prefer a single sentence.
-- Do not edit the package version or `CHANGELOG.md` by hand, and do not run `changeset version` or `changeset publish`; the release workflow consumes pending changesets.
+- Do not edit the package version or `CHANGELOG.md` by hand, and do not run `changeset version` or `changeset publish`; the maintainer releases pending changesets.
 
 ## Tests
 
