@@ -12,7 +12,7 @@
         "@types/node": "^24.0.0",
         "@vue/test-utils": "^2.5.1",
         "@vueuse/core": "^15.0.0",
-        "changesets-local": "^1.6.0",
+        "changesets-release": "^2.1.1",
         "happy-dom": "^21.0.4",
         "nuxt": "~4.6.2",
         "oxfmt": "^0.78.0",
@@ -729,7 +729,7 @@
 
     "chai": ["chai@6.3.0", "", {}, "sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg=="],
 
-    "changesets-local": ["changesets-local@1.6.0", "", { "bin": { "changesets-local": "dist/cli.mjs" } }, "sha512-c7U00YJKE/BBLpueixqoMtR8c2sHcOtaInHAaQhLawK3hbYT6Hk5lQJ74uLNyd8/2I8c6dVL8XWz/BB2DYOg/w=="],
+    "changesets-release": ["changesets-release@2.1.1", "", { "bin": { "changesets-release": "dist/cli.mjs" } }, "sha512-vVJ3MaIeSgo0TyuJz9ZOEbxmeJLaG/OXnbPGbJggum3UtbFangJgzBvZs/UMXSZs7/0pfDpVmS9Bf2Gc9533nw=="],
 
     "chokidar": ["chokidar@5.0.0", "", { "dependencies": { "readdirp": "^5.0.0" } }, "sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw=="],
 
