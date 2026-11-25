@@ -13,6 +13,10 @@ it("runs project resets under real timers and drops pending fake timers", async 
   expect(run.reports("fake-timers")).toEqual([{ fakeTimers: false, fired: false }])
 })
 
+it("cancels a navigation that a test leaves in flight", async () => {
+  expectPassed(await runFixture("pending-navigation"))
+})
+
 it("cleans up after a failing project afterEach hook", async () => {
   const run = await runFixture("failing-hook")
   const failed = run.test("dirties the environment, then its afterEach fails")

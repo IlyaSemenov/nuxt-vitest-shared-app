@@ -492,7 +492,7 @@ They run after all `afterEach` hooks of the project, also when one of these hook
 2. unmounts wrappers mounted in the test through `@vue/test-utils` (including `mountSuspended`), using `enableAutoUnmount`;
 3. `await nextTick()` and `await flushPromises()`;
 4. runs test cleanups registered with `onNuxtTestCleanup` during the test, newest first, awaiting each;
-5. navigates the app's own router back to the route baseline with `router.replace` if the route differs, and verifies the resulting route;
+5. navigates the app's own router back to the route baseline with `router.replace`, which also cancels a navigation that the test started but did not await, and verifies the resulting route;
 6. clears import overrides;
 7. `await clearError()`, `clearNuxtData()`, `clearNuxtState(undefined, { reset: false })`;
 8. runs project resets registered with `registerNuxtTestReset`, in registration order, awaiting each;
@@ -504,6 +504,8 @@ The exact scope:
 
 - `flushPromises` only settles handlers of promises that are already resolved; subscriptions, requests, and other background work need their own project resets;
 - step 5 uses the router instance of the app, never the overridable `useRoute`/`navigateTo`;
+- when the app is already on a baseline that matches no page, e.g. in an app without pages, step 5 does not navigate, so a navigation that the test started but did not await is not cancelled;
+- a navigation whose route middleware is still running at step 5, e.g. waiting for a request, can still redirect after the cleanup and change the route during a later test; await such navigations in the test;
 - DOM cleanup removes only new direct children of `document.body`; changes to nodes that existed at startup are not reverted;
 - cookies are expired only as listed above; `HttpOnly` cookies and cookies of other paths or domains are not touched;
 - state created by startup plugins is not re-created.

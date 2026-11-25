@@ -67,7 +67,11 @@ export async function cleanupAfterTest(
     // The real router, not the overridable `useRoute`/`navigateTo`, which may still be overridden at this point.
     const { useNuxtApp } = await importNuxt()
     const router = getRealRouter(useNuxtApp())
-    if (router.currentRoute.value.fullPath !== baseline.route) {
+    // Also on the baseline of a page: a navigation the test did not await does not change the route until it finishes, which may happen during a later test.
+    // Starting a navigation makes vue-router cancel the pending one at its next guard, and on the same page it runs no guards.
+    // Without a page, the navigation would run every guard, e.g. with the router that Nuxt uses without pages.
+    const onPage = router.currentRoute.value.matched.length > 0
+    if (router.currentRoute.value.fullPath !== baseline.route || onPage) {
       await router.replace(baseline.route)
       const route = router.currentRoute.value.fullPath
       if (route !== baseline.route) {
