@@ -1,5 +1,11 @@
 # nuxt-vitest-shared-app
 
+## 0.5.1
+
+### Patch Changes
+
+- 31625e8: Fix `mountSuspended` hanging under fake timers after an earlier test left a navigation unfinished, e.g. by clicking a `NuxtLink`.
+
 ## 0.5.0
 
 ### Minor Changes
